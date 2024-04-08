@@ -21,7 +21,7 @@ type GTPv2Packet struct {
 	MessagePriority  uint8                  `json:"messagePriority"`
 	MessageType      uint8                  `json:"messageType"`
 	MessageLength    uint16                 `json:"messageLength"`
-	TEID             uint32                 `json:"teid"`
+	TEID             *uint32                `json:"teid,omitempty"`
 	SequenceNumber   uint32                 `json:"sequenceNumber"`
 	Spare            uint8                  `json:"spare"`
 	IEs              map[string]interface{} `json:"ies"`
@@ -73,6 +73,14 @@ func processPacket(packet gopacket.Packet) {
 			processedIEs[ieKey] = processedContent
 		}
 
+		// This allows us to check for nil,
+		// enabling conditional inclusion of the TEID field in the JSON output based on the TEIDflag
+		var teidPtr *uint32
+		if gtp.TEIDflag {
+			teidPtr = new(uint32)
+			*teidPtr = gtp.TEID
+		}
+
 		packetData := GTPv2Packet{
 			Timestamp:        packet.Metadata().Timestamp,
 			Version:          gtp.Version,
@@ -80,7 +88,7 @@ func processPacket(packet gopacket.Packet) {
 			TEIDflag:         gtp.TEIDflag,
 			MessagePriority:  gtp.MessagePriority,
 			MessageType:      gtp.MessageType,
-			TEID:             gtp.TEID,
+			TEID:             teidPtr,
 			SequenceNumber:   gtp.SequenceNumber,
 			Spare:            gtp.Spare,
 			IEs:              processedIEs,
