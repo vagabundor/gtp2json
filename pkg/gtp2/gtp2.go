@@ -8,16 +8,21 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
+// LayerTypeGTPv2 registers GTPv2 layer type for use with GoPacket
 var LayerTypeGTPv2 = gopacket.RegisterLayerType(1010,
 	gopacket.LayerTypeMetadata{Name: "GTPv2", Decoder: gopacket.DecodeFunc(decodeGTPv2)})
 
 const gtpMinimumSizeInBytes int = 4
 
+// IE represents an Information Element in GTPv2, a key component for message structure
 type IE struct {
 	Type    uint8
 	Content []byte
 }
 
+// GTPv2 is designed for the control plane of the Evolved Packet System,
+// facilitating various control and mobility management messages between gateways and MME/S-GW.
+// Defined in the 3GPP TS 29.274 specification
 type GTPv2 struct {
 	Version          uint8
 	PiggybackingFlag bool
@@ -35,10 +40,12 @@ type GTPv2 struct {
 }
 
 func init() {
+	// Registers GTPv2 to be identified and processed over its standard UDP port, 2123
 	udpPort := layers.UDPPort(2123)
 	layers.RegisterUDPPortLayerType(udpPort, LayerTypeGTPv2)
 }
 
+// DecodeFromBytes analyses a byte slice and attempts to decode it as a GTPv2 packet
 func (g *GTPv2) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	hLen := gtpMinimumSizeInBytes
 	dLen := len(data)
@@ -89,6 +96,7 @@ func (g *GTPv2) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 
 }
 
+// decodeGTPv2 is a utility function to facilitate the decoding of GTPv2 packets within GoPacket's framework
 func decodeGTPv2(data []byte, p gopacket.PacketBuilder) error {
 	gtp := &GTPv2{}
 
@@ -100,22 +108,27 @@ func decodeGTPv2(data []byte, p gopacket.PacketBuilder) error {
 	return nil
 }
 
+// LayerType returns LayerTypeGTPv2
 func (g *GTPv2) LayerType() gopacket.LayerType {
 	return LayerTypeGTPv2
 }
 
+// LayerContents returns the contents of the GTPv2 layer.
 func (g *GTPv2) LayerContents() []byte {
 	return g.Contents
 }
 
+// LayerPayload returns the payload of the GTPv2 layer.
 func (g *GTPv2) LayerPayload() []byte {
 	return g.Payload
 }
 
+// CanDecode returns a set of layers that GTP objects can decode
 func (g *GTPv2) CanDecode() gopacket.LayerClass {
 	return LayerTypeGTPv2
 }
 
+// NextLayerType specifies the next layer that GoPacket should attempt to
 func (g *GTPv2) NextLayerType() gopacket.LayerType {
 	return gopacket.LayerTypePayload
 }
