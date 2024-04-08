@@ -60,7 +60,3 @@ func DecodeBCD(content []byte) (string, error) {
 
 	return decoded, nil
 }
-
-func processMSISDN(content []byte) string {
-	return string(content)
-}
