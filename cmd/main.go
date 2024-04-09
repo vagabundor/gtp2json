@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
 	"gtp2json/pkg/gtp2ie"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/gopacket"
@@ -30,8 +32,10 @@ type GTPv2Packet struct {
 func main() {
 
 	var pcapFile string
+	var format string
 	flag.StringVar(&pcapFile, "f", "", "Path to the pcap file to analyze")
 	flag.StringVar(&pcapFile, "file", "", "Path to the pcap file to analyze")
+	flag.StringVar(&format, "format", "numeric", "Specifies the format of the output")
 
 	flag.Parse()
 
@@ -39,6 +43,14 @@ func main() {
 		fmt.Println("Please specify a pcap file using -f or --file flag")
 		fmt.Println("Example: gtp2json --file cutured.pcap")
 		flag.PrintDefaults()
+		return
+	}
+
+	switch format {
+	case "numeric", "text", "mixed":
+		config.SetOutputFormat(format)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: '%s' is not a valid format. Use 'numeric', 'text', or 'mixed'.\n", format)
 		return
 	}
 
