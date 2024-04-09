@@ -88,6 +88,7 @@ func processPacket(packet gopacket.Packet) {
 			TEIDflag:         gtp.TEIDflag,
 			MessagePriority:  gtp.MessagePriority,
 			MessageType:      gtp.MessageType,
+			MessageLength:    gtp.MessageLength,
 			TEID:             teidPtr,
 			SequenceNumber:   gtp.SequenceNumber,
 			Spare:            gtp.Spare,
