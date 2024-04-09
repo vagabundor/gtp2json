@@ -14,6 +14,7 @@ const (
 	IETypeFTEID  = 87
 )
 
+// ieTypeNames maps IE types to their string representations
 var ieTypeNames = map[uint8]string{
 	IETypeIMSI:   "imsi",
 	IETypeMSISDN: "msisdn",
@@ -21,6 +22,7 @@ var ieTypeNames = map[uint8]string{
 	IETypeFTEID:  "F-TEID",
 }
 
+// FTEID represents F-TEID (3GPPP TS 29.274 8.22)
 type FTEID struct {
 	InterfaceType string `json:"InterfaceType"`
 	TEIDGREKey    string `json:"TEID/GRE Key"`
@@ -28,6 +30,7 @@ type FTEID struct {
 	IPv6          string `json:"F-TEID IPv6,omitempty"`
 }
 
+// ProcessIE decodes the content of a given IE based on its type
 func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 
 	ieName, ok := ieTypeNames[ie.Type]
@@ -55,6 +58,7 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 	}
 }
 
+// DecodeFTEID decodes FTEID fields from bytes, including TEID/GRE key and optional IP addresses
 func DecodeFTEID(content []byte) (FTEID, error) {
 	if len(content) < 5 {
 		return FTEID{}, fmt.Errorf("content is too short for F-TEID")
@@ -93,6 +97,9 @@ func DecodeFTEID(content []byte) (FTEID, error) {
 	}, nil
 }
 
+// DecodeBCD converts packed BCD-encoded bytes into a decimal string.
+// It reads two digits per byte, halting on a 0xF special symbol.
+// Digits are processed in big-endian order.
 func DecodeBCD(content []byte) (string, error) {
 	var decoded string
 
