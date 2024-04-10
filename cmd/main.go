@@ -15,18 +15,23 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
+type IE struct {
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+}
+
 type GTPv2Packet struct {
-	Timestamp        time.Time              `json:"timestamp"`
-	Version          uint8                  `json:"version"`
-	PiggybackingFlag bool                   `json:"piggybackingFlag"`
-	TEIDflag         bool                   `json:"teidFlag"`
-	MessagePriority  uint8                  `json:"messagePriority"`
-	MessageType      uint8                  `json:"messageType"`
-	MessageLength    uint16                 `json:"messageLength"`
-	TEID             *uint32                `json:"teid,omitempty"`
-	SequenceNumber   uint32                 `json:"sequenceNumber"`
-	Spare            uint8                  `json:"spare"`
-	IEs              map[string]interface{} `json:"ies"`
+	Timestamp        time.Time `json:"timestamp"`
+	Version          uint8     `json:"version"`
+	PiggybackingFlag bool      `json:"piggybackingFlag"`
+	TEIDflag         bool      `json:"teidFlag"`
+	MessagePriority  uint8     `json:"messagePriority"`
+	MessageType      uint8     `json:"messageType"`
+	MessageLength    uint16    `json:"messageLength"`
+	TEID             *uint32   `json:"teid,omitempty"`
+	SequenceNumber   uint32    `json:"sequenceNumber"`
+	Spare            uint8     `json:"spare"`
+	IEs              []IE      `json:"ies"`
 }
 
 func main() {
@@ -75,14 +80,19 @@ func processPacket(packet gopacket.Packet) {
 			return
 		}
 
-		processedIEs := make(map[string]interface{})
+		var ieItems []IE
 		for _, ie := range gtp.IEs {
-			ieKey, processedContent, err := gtp2ie.ProcessIE(ie)
+
+			ieName, processedContent, err := gtp2ie.ProcessIE(ie)
 			if err != nil {
 				log.Printf("Error processing IE: %v", err)
 				continue
 			}
-			processedIEs[ieKey] = processedContent
+
+			ieItems = append(ieItems, IE{
+				Type:  ieName,
+				Value: processedContent,
+			})
 		}
 
 		// This allows us to check for nil,
@@ -104,7 +114,7 @@ func processPacket(packet gopacket.Packet) {
 			TEID:             teidPtr,
 			SequenceNumber:   gtp.SequenceNumber,
 			Spare:            gtp.Spare,
-			IEs:              processedIEs,
+			IEs:              ieItems,
 		}
 
 		jsonData, err := json.MarshalIndent(packetData, "", "    ")
