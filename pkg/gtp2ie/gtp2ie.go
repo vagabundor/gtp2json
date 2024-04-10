@@ -3,6 +3,7 @@ package gtp2ie
 import (
 	"encoding/hex"
 	"fmt"
+	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
 	"net"
 )
@@ -89,10 +90,24 @@ func DecodeFTEID(content []byte) (FTEID, error) {
 		ipv6Addr = net.IP(content[currentIndex : currentIndex+16]).To16().String()
 	}
 
+	// Formatted result support
+	format := config.GetOutputFormat()
+	interfaceTypeFormatted := ""
+	switch format {
+	case "numeric":
+		interfaceTypeFormatted = fmt.Sprintf("%d", interfaceType)
+	case "text":
+		interfaceTypeFormatted = InterfaceTypeDescriptions[uint8(interfaceType)]
+	case "mixed":
+		interfaceTypeFormatted = fmt.Sprintf("%s (%d)", InterfaceTypeDescriptions[uint8(interfaceType)], interfaceType)
+	default:
+		interfaceTypeFormatted = fmt.Sprintf("%d", interfaceType)
+	}
+
 	return FTEID{
 		IPv4:          ipv4Addr,
 		IPv6:          ipv6Addr,
-		InterfaceType: fmt.Sprintf("%d", interfaceType),
+		InterfaceType: interfaceTypeFormatted,
 		TEIDGREKey:    teidGREKey,
 	}, nil
 }
