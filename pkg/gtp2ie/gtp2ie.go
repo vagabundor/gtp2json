@@ -13,6 +13,7 @@ const (
 	IETypeMSISDN = 76
 	IETypeMEI    = 75
 	IETypeFTEID  = 87
+	IETypeULI    = 86
 )
 
 // ieTypeNames maps IE types to their string representations
@@ -21,6 +22,7 @@ var ieTypeNames = map[uint8]string{
 	IETypeMSISDN: "msisdn",
 	IETypeMEI:    "mei",
 	IETypeFTEID:  "F-TEID",
+	IETypeULI:    "ULI",
 }
 
 // FTEID represents F-TEID (3GPPP TS 29.274 8.22)
@@ -49,6 +51,12 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		return ieName, decodedContent, nil
 	case IETypeFTEID:
 		decodedContent, err := DecodeFTEID(ie.Content)
+		if err != nil {
+			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
+		}
+		return ieName, decodedContent, nil
+	case IETypeULI:
+		decodedContent, err := DecodeULI(ie.Content)
 		if err != nil {
 			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
 		}
