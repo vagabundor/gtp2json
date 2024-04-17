@@ -16,9 +16,9 @@ const (
 
 // ieTypeNames maps IE types to their string representations
 var ieTypeNames = map[uint8]string{
-	IETypeIMSI:   "imsi",
-	IETypeMSISDN: "msisdn",
-	IETypeMEI:    "mei",
+	IETypeIMSI:   "IMSI",
+	IETypeMSISDN: "MSISDN",
+	IETypeMEI:    "MEI",
 	IETypeFTEID:  "F-TEID",
 	IETypeULI:    "ULI",
 }
@@ -33,7 +33,7 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 	}
 
 	switch ie.Type {
-	case IETypeIMSI, IETypeMSISDN: // Group for BCD types
+	case IETypeIMSI, IETypeMSISDN, IETypeMEI: // Group for BCD types
 		decodedContent, err := DecodeBCD(ie.Content)
 		if err != nil {
 			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
