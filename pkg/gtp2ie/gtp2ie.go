@@ -7,20 +7,22 @@ import (
 )
 
 const (
-	IETypeIMSI   = 1
-	IETypeMSISDN = 76
-	IETypeMEI    = 75
-	IETypeFTEID  = 87
-	IETypeULI    = 86
+	IETypeIMSI       = 1
+	IETypeMSISDN     = 76
+	IETypeMEI        = 75
+	IETypeFTEID      = 87
+	IETypeULI        = 86
+	IETypeServingNet = 83
 )
 
 // ieTypeNames maps IE types to their string representations
 var ieTypeNames = map[uint8]string{
-	IETypeIMSI:   "IMSI",
-	IETypeMSISDN: "MSISDN",
-	IETypeMEI:    "MEI",
-	IETypeFTEID:  "F-TEID",
-	IETypeULI:    "ULI",
+	IETypeIMSI:       "IMSI",
+	IETypeMSISDN:     "MSISDN",
+	IETypeMEI:        "MEI",
+	IETypeFTEID:      "F-TEID",
+	IETypeULI:        "ULI",
+	IETypeServingNet: "ServingNetwork",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -47,6 +49,12 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		return ieName, decodedContent, nil
 	case IETypeULI:
 		decodedContent, err := DecodeULI(ie.Content)
+		if err != nil {
+			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
+		}
+		return ieName, decodedContent, nil
+	case IETypeServingNet:
+		decodedContent, err := DecodeServingNet(ie.Content)
 		if err != nil {
 			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
 		}
