@@ -13,6 +13,7 @@ const (
 	IETypeFTEID      = 87
 	IETypeULI        = 86
 	IETypeServingNet = 83
+	IETypeRATType    = 82
 )
 
 // ieTypeNames maps IE types to their string representations
@@ -23,6 +24,7 @@ var ieTypeNames = map[uint8]string{
 	IETypeFTEID:      "F-TEID",
 	IETypeULI:        "ULI",
 	IETypeServingNet: "ServingNetwork",
+	IETypeRATType:    "RATType",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -57,6 +59,12 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodedContent, err := DecodeServingNet(ie.Content)
 		if err != nil {
 			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
+		}
+		return ieName, decodedContent, nil
+	case IETypeRATType:
+		decodedContent, err := DecodeRATType(ie.Content)
+		if err != nil {
+			return ieName, nil, fmt.Errorf("failed to decode RAT Type: %w", err)
 		}
 		return ieName, decodedContent, nil
 	default:
