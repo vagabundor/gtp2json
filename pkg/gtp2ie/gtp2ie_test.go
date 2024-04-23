@@ -50,9 +50,9 @@ func TestProcessIE(t *testing.T) {
 		{
 			name: "Test Unknown IE Type",
 			args: args{
-				ie: gtp2.IE{Type: 99, Content: []byte{0x01, 0x02}},
+				ie: gtp2.IE{Type: 255, Content: []byte{0x01, 0x02}},
 			},
-			want:    "unknown_type_99",
+			want:    "unknown_type_255",
 			want1:   "0102",
 			wantErr: false,
 		},
