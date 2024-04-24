@@ -75,7 +75,7 @@ func TestProcessIE(t *testing.T) {
 			},
 			want: "F-TEID",
 			want1: FTEID{
-				InterfaceType: "10",
+				InterfaceType: uint8(10),
 				TEIDGREKey:    "3f0fed23",
 				IPv4:          "217.148.48.234",
 				IPv6:          "",

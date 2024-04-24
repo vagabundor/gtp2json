@@ -54,10 +54,10 @@ var InterfaceTypeDescriptions = map[uint8]string{
 
 // FTEID represents F-TEID (3GPPP TS 29.274 8.22)
 type FTEID struct {
-	InterfaceType string `json:"InterfaceType"`
-	TEIDGREKey    string `json:"TEID/GRE Key"`
-	IPv4          string `json:"F-TEID IPv4,omitempty"`
-	IPv6          string `json:"F-TEID IPv6,omitempty"`
+	InterfaceType interface{} `json:"InterfaceType"`
+	TEIDGREKey    string      `json:"TEID/GRE Key"`
+	IPv4          string      `json:"F-TEID IPv4,omitempty"`
+	IPv6          string      `json:"F-TEID IPv6,omitempty"`
 }
 
 // DecodeFTEID decodes FTEID fields from bytes, including TEID/GRE key and optional IP addresses
@@ -93,16 +93,16 @@ func DecodeFTEID(content []byte) (FTEID, error) {
 
 	// Formatted result support
 	format := config.GetOutputFormat()
-	interfaceTypeFormatted := ""
+	var interfaceTypeFormatted interface{}
 	switch format {
 	case "numeric":
-		interfaceTypeFormatted = fmt.Sprintf("%d", interfaceType)
+		interfaceTypeFormatted = interfaceType
 	case "text":
 		interfaceTypeFormatted = InterfaceTypeDescriptions[uint8(interfaceType)]
 	case "mixed":
 		interfaceTypeFormatted = fmt.Sprintf("%s (%d)", InterfaceTypeDescriptions[uint8(interfaceType)], interfaceType)
 	default:
-		interfaceTypeFormatted = fmt.Sprintf("%d", interfaceType)
+		interfaceTypeFormatted = interfaceType
 	}
 
 	return FTEID{
