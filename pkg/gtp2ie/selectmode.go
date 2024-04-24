@@ -14,7 +14,7 @@ var SelectionModeNames = map[byte]string{
 }
 
 // DecodeSelectionMode decodes the Selection Mode from a single-byte slice
-func DecodeSelectionMode(data []byte) (string, error) {
+func DecodeSelectionMode(data []byte) (interface{}, error) {
 	if len(data) < 1 {
 		return "", fmt.Errorf("insufficient data for Selection Mode")
 	}
@@ -25,16 +25,16 @@ func DecodeSelectionMode(data []byte) (string, error) {
 	}
 
 	format := config.GetOutputFormat()
-	mode := ""
+	var mode interface{}
 	switch format {
 	case "numeric":
-		mode = fmt.Sprintf("%d", data[0])
+		mode = data[0]
 	case "text":
 		mode = modeDesc
 	case "mixed":
 		mode = fmt.Sprintf("%s (%d)", modeDesc, data[0])
 	default:
-		mode = fmt.Sprintf("%d", data[0])
+		mode = data[0]
 	}
 
 	return mode, nil
