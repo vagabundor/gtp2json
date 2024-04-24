@@ -32,7 +32,7 @@ var RATTypeNames = map[byte]string{
 }
 
 // DecodeRATType decodes the RAT Type from a single-byte slice
-func DecodeRATType(data []byte) (string, error) {
+func DecodeRATType(data []byte) (interface{}, error) {
 	if len(data) < 1 {
 		return "", fmt.Errorf("insufficient data for RAT Type")
 	}
@@ -44,16 +44,16 @@ func DecodeRATType(data []byte) (string, error) {
 		return fmt.Sprintf("Unknown RAT Type (%d)", ratType), nil
 	}
 
-	ratTypeFormatted := ""
+	var ratTypeFormatted interface{}
 	switch format {
 	case "numeric":
-		ratTypeFormatted = fmt.Sprintf("%d", ratType)
+		ratTypeFormatted = ratType
 	case "text":
 		ratTypeFormatted = description
 	case "mixed":
 		ratTypeFormatted = fmt.Sprintf("%s (%d)", description, ratType)
 	default:
-		ratTypeFormatted = fmt.Sprintf("%d", ratType)
+		ratTypeFormatted = ratType
 	}
 
 	return ratTypeFormatted, nil
