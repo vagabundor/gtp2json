@@ -1,6 +1,7 @@
 package gtp2ie
 
 import (
+	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
 	"reflect"
 	"testing"
@@ -109,8 +110,178 @@ func TestProcessIE(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Test ServingNet Decoding",
+			args: args{
+				ie: gtp2.IE{Type: IETypeServingNet, Content: []byte{0x52, 0xf0, 0x53}},
+			},
+			want:    "ServingNetwork",
+			want1:   MCCMNC{MCC: "250", MNC: "35"},
+			wantErr: false,
+		},
+		{
+			name: "Test Indication Decoding",
+			args: args{
+				ie: gtp2.IE{Type: IETypeIndication, Content: []byte{0xAA, 0x55}},
+			},
+			want: "Indication",
+			want1: Indication{
+				DAF:   true,
+				DTF:   false,
+				HI:    true,
+				DFI:   false,
+				OI:    true,
+				ISRSI: false,
+				ISRAI: true,
+				SGWCI: false,
+				SQCI:  false,
+				UIMSI: true,
+				CFSI:  false,
+				CRSI:  true,
+				PS:    false,
+				PT:    true,
+				SI:    false,
+				MSV:   true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test APN Decoding",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypeAPN,
+					Content: []byte{0x04, 0x69, 0x6e, 0x65, 0x74, 0x03, 0x79, 0x63, 0x63, 0x02, 0x72, 0x75, 0x06, 0x6d, 0x6e, 0x63,
+						0x30, 0x33, 0x35, 0x06, 0x6d, 0x63, 0x63, 0x32, 0x35, 0x30, 0x04, 0x67, 0x70, 0x72, 0x73},
+				},
+			},
+			want:    "APN",
+			want1:   "inet.ycc.ru.mnc035.mcc250.gprs",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := ProcessIE(tt.args.ie)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ProcessIE() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ProcessIE() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ProcessIE() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestProcessIE_AllFormats(t *testing.T) {
+	type args struct {
+		ie     gtp2.IE
+		format string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   interface{}
+		wantErr bool
+	}{
+		{
+			name: "Test RATType Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeRATType, Content: []byte{0x06}},
+				format: "numeric",
+			},
+			want:    "RATType",
+			want1:   uint8(6),
+			wantErr: false,
+		},
+		{
+			name: "Test RATType Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeRATType, Content: []byte{0x06}},
+				format: "text",
+			},
+			want:    "RATType",
+			want1:   "EUTRAN",
+			wantErr: false,
+		},
+		{
+			name: "Test RATType Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeRATType, Content: []byte{0x06}},
+				format: "mixed",
+			},
+			want:    "RATType",
+			want1:   "EUTRAN (6)",
+			wantErr: false,
+		},
+		{
+			name: "Test SelectionMode Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeSelectionMode, Content: []byte{0x02}},
+				format: "numeric",
+			},
+			want:    "SelectionMode",
+			want1:   uint8(2),
+			wantErr: false,
+		},
+		{
+			name: "Test SelectionMode Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeSelectionMode, Content: []byte{0x02}},
+				format: "text",
+			},
+			want:    "SelectionMode",
+			want1:   "Network provided APN, subscription not verified",
+			wantErr: false,
+		},
+		{
+			name: "Test SelectionMode Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeSelectionMode, Content: []byte{0x02}},
+				format: "mixed",
+			},
+			want:    "SelectionMode",
+			want1:   "Network provided APN, subscription not verified (2)",
+			wantErr: false,
+		},
+		{
+			name: "Test PDNType Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePDNType, Content: []byte{0x03}},
+				format: "numeric",
+			},
+			want:    "PDNType",
+			want1:   uint8(3),
+			wantErr: false,
+		},
+		{
+			name: "Test PDNType Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePDNType, Content: []byte{0x03}},
+				format: "text",
+			},
+			want:    "PDNType",
+			want1:   "IPv4v6",
+			wantErr: false,
+		},
+		{
+			name: "Test PDNType Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePDNType, Content: []byte{0x03}},
+				format: "mixed",
+			},
+			want:    "PDNType",
+			want1:   "IPv4v6 (3)",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		config.SetOutputFormat(tt.args.format)
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1, err := ProcessIE(tt.args.ie)
 			if (err != nil) != tt.wantErr {
