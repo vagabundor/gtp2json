@@ -23,7 +23,7 @@ type Indication struct {
 }
 
 // DecodeIndication decodes the bits of the Indication IE to determine active flags
-func DecodeIndication(data []byte) (Indication, error) {
+func DecodeIndication(data []byte) (interface{}, error) {
 	if len(data) < 2 {
 		return Indication{}, fmt.Errorf("insufficient data for Indication")
 	}

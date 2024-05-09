@@ -5,7 +5,7 @@ import "fmt"
 // DecodeBCD converts packed BCD-encoded bytes into a decimal string.
 // It reads two digits per byte, halting on a 0xF special symbol.
 // Digits are processed in big-endian order.
-func DecodeBCD(content []byte) (string, error) {
+func DecodeBCD(content []byte) (interface{}, error) {
 	var decoded string
 
 	for _, b := range content {

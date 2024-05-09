@@ -44,64 +44,34 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		return fmt.Sprintf("unknown_type_%d", ie.Type), hex.EncodeToString(ie.Content), nil
 	}
 
+	var decodeFunc func([]byte) (interface{}, error)
 	switch ie.Type {
-	case IETypeIMSI, IETypeMSISDN, IETypeMEI: // Group for BCD types
-		decodedContent, err := DecodeBCD(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+	case IETypeIMSI, IETypeMSISDN, IETypeMEI:
+		decodeFunc = DecodeBCD
 	case IETypeFTEID:
-		decodedContent, err := DecodeFTEID(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeFTEID
 	case IETypeULI:
-		decodedContent, err := DecodeULI(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeULI
 	case IETypeServingNet:
-		decodedContent, err := DecodeServingNet(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeServingNet
 	case IETypeRATType:
-		decodedContent, err := DecodeRATType(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeRATType
 	case IETypeIndication:
-		decodedContent, err := DecodeIndication(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeIndication
 	case IETypeAPN:
-		decodedContent, err := DecodeAPN(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeAPN
 	case IETypeSelectionMode:
-		decodedContent, err := DecodeSelectionMode(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
+		decodeFunc = DecodeSelectionMode
 	case IETypePDNType:
-		decodedContent, err := DecodePDNType(ie.Content)
-		if err != nil {
-			return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
-		}
-		return ieName, decodedContent, nil
-
+		decodeFunc = DecodePDNType
 	default:
-		// Unknown type encode to hex
 		return ieName, hex.EncodeToString(ie.Content), nil
 	}
+
+	decodedContent, err := decodeFunc(ie.Content)
+	if err != nil {
+		return ieName, nil, fmt.Errorf("failed to decode %s: %w", ieName, err)
+	}
+
+	return ieName, decodedContent, nil
 }

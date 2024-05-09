@@ -61,7 +61,7 @@ type FTEID struct {
 }
 
 // DecodeFTEID decodes FTEID fields from bytes, including TEID/GRE key and optional IP addresses
-func DecodeFTEID(content []byte) (FTEID, error) {
+func DecodeFTEID(content []byte) (interface{}, error) {
 	if len(content) < 5 {
 		return FTEID{}, fmt.Errorf("content is too short for F-TEID")
 	}

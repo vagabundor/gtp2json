@@ -225,7 +225,7 @@ func decodeExtendedMacroENodeBID(data []byte) (ExtendedMacroENodebID, int, error
 }
 
 // DecodeULI decodes User Location Information (ULI) from a given byte slice
-func DecodeULI(data []byte) (ULI, error) {
+func DecodeULI(data []byte) (interface{}, error) {
 	if len(data) < 1 {
 		return ULI{}, fmt.Errorf("not enough data to decode ULI")
 	}

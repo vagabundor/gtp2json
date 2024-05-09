@@ -6,7 +6,7 @@ import (
 )
 
 // DecodeAPN decodes the APN from IE data
-func DecodeAPN(data []byte) (string, error) {
+func DecodeAPN(data []byte) (interface{}, error) {
 	if len(data) == 0 {
 		return "", fmt.Errorf("APN data is empty")
 	}
