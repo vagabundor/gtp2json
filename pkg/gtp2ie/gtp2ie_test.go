@@ -278,6 +278,36 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			want1:   "IPv4v6 (3)",
 			wantErr: false,
 		},
+		{
+			name: "Test PAA IPv4 Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePAA, Content: []byte{0x01, 0xC0, 0xA8, 0x01, 0x01}},
+				format: "numeric",
+			},
+			want:    "PAA",
+			want1:   PAA{PDNType: uint8(1), IPv4: "192.168.1.1"},
+			wantErr: false,
+		},
+		{
+			name: "Test PAA IPv4 Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePAA, Content: []byte{0x01, 0xC0, 0xA8, 0x01, 0x01}},
+				format: "text",
+			},
+			want:    "PAA",
+			want1:   PAA{PDNType: "IPv4", IPv4: "192.168.1.1"},
+			wantErr: false,
+		},
+		{
+			name: "Test PAA IPv4 Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePAA, Content: []byte{0x01, 0xC0, 0xA8, 0x01, 0x01}},
+				format: "mixed",
+			},
+			want:    "PAA",
+			want1:   PAA{PDNType: "IPv4 (1)", IPv4: "192.168.1.1"},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
