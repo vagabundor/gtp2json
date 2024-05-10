@@ -308,6 +308,36 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			want1:   PAA{PDNType: "IPv4 (1)", IPv4: "192.168.1.1"},
 			wantErr: false,
 		},
+		{
+			name: "Test APN Restriction Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeAPNRestriction, Content: []byte{0x01}},
+				format: "numeric",
+			},
+			want:    "APNRestriction",
+			want1:   uint8(1),
+			wantErr: false,
+		},
+		{
+			name: "Test APN Restriction Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeAPNRestriction, Content: []byte{0x01}},
+				format: "text",
+			},
+			want:    "APNRestriction",
+			want1:   "Public-1",
+			wantErr: false,
+		},
+		{
+			name: "Test APN Restriction Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeAPNRestriction, Content: []byte{0x01}},
+				format: "mixed",
+			},
+			want:    "APNRestriction",
+			want1:   "Public-1 (1)",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

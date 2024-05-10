@@ -7,34 +7,36 @@ import (
 )
 
 const (
-	IETypeIMSI          = 1
-	IETypeMSISDN        = 76
-	IETypeMEI           = 75
-	IETypeFTEID         = 87
-	IETypeULI           = 86
-	IETypeServingNet    = 83
-	IETypeRATType       = 82
-	IETypeIndication    = 77
-	IETypeAPN           = 71
-	IETypeSelectionMode = 128
-	IETypePDNType       = 99
-	IETypePAA           = 79
+	IETypeIMSI           = 1
+	IETypeMSISDN         = 76
+	IETypeMEI            = 75
+	IETypeFTEID          = 87
+	IETypeULI            = 86
+	IETypeServingNet     = 83
+	IETypeRATType        = 82
+	IETypeIndication     = 77
+	IETypeAPN            = 71
+	IETypeSelectionMode  = 128
+	IETypePDNType        = 99
+	IETypePAA            = 79
+	IETypeAPNRestriction = 127
 )
 
 // ieTypeNames maps IE types to their string representations
 var ieTypeNames = map[uint8]string{
-	IETypeIMSI:          "IMSI",
-	IETypeMSISDN:        "MSISDN",
-	IETypeMEI:           "MEI",
-	IETypeFTEID:         "F-TEID",
-	IETypeULI:           "ULI",
-	IETypeServingNet:    "ServingNetwork",
-	IETypeRATType:       "RATType",
-	IETypeIndication:    "Indication",
-	IETypeAPN:           "APN",
-	IETypeSelectionMode: "SelectionMode",
-	IETypePDNType:       "PDNType",
-	IETypePAA:           "PAA",
+	IETypeIMSI:           "IMSI",
+	IETypeMSISDN:         "MSISDN",
+	IETypeMEI:            "MEI",
+	IETypeFTEID:          "F-TEID",
+	IETypeULI:            "ULI",
+	IETypeServingNet:     "ServingNetwork",
+	IETypeRATType:        "RATType",
+	IETypeIndication:     "Indication",
+	IETypeAPN:            "APN",
+	IETypeSelectionMode:  "SelectionMode",
+	IETypePDNType:        "PDNType",
+	IETypePAA:            "PAA",
+	IETypeAPNRestriction: "APNRestriction",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -68,6 +70,8 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodeFunc = DecodePDNType
 	case IETypePAA:
 		decodeFunc = DecodePAA
+	case IETypeAPNRestriction:
+		decodeFunc = DecodeAPNRestriction
 	default:
 		return ieName, hex.EncodeToString(ie.Content), nil
 	}
