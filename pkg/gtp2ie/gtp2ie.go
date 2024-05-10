@@ -20,6 +20,7 @@ const (
 	IETypePDNType        = 99
 	IETypePAA            = 79
 	IETypeAPNRestriction = 127
+	IETypeAMBR           = 72
 )
 
 // ieTypeNames maps IE types to their string representations
@@ -37,6 +38,7 @@ var ieTypeNames = map[uint8]string{
 	IETypePDNType:        "PDNType",
 	IETypePAA:            "PAA",
 	IETypeAPNRestriction: "APNRestriction",
+	IETypeAMBR:           "AMBR",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -72,6 +74,8 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodeFunc = DecodePAA
 	case IETypeAPNRestriction:
 		decodeFunc = DecodeAPNRestriction
+	case IETypeAMBR:
+		decodeFunc = DecodeAMBR
 	default:
 		return ieName, hex.EncodeToString(ie.Content), nil
 	}

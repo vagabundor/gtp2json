@@ -158,6 +158,24 @@ func TestProcessIE(t *testing.T) {
 			want1:   "inet.ycc.ru.mnc035.mcc250.gprs",
 			wantErr: false,
 		},
+		{
+			name: "Test AMBR Decoding with valid data",
+			args: args{
+				ie: gtp2.IE{Type: IETypeAMBR, Content: []byte{0x00, 0x00, 0x1F, 0x40, 0x00, 0x00, 0x2E, 0xE0}},
+			},
+			want:    "AMBR",
+			want1:   AMBR{Uplink: 8000, Downlink: 12000},
+			wantErr: false,
+		},
+		{
+			name: "Test AMBR Decoding with insufficient data",
+			args: args{
+				ie: gtp2.IE{Type: IETypeAMBR, Content: []byte{0x00, 0x00, 0x1F}}, // Not enough bytes
+			},
+			want:    "AMBR",
+			want1:   nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
