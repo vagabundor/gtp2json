@@ -356,6 +356,36 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			want1:   "Public-1 (1)",
 			wantErr: false,
 		},
+		{
+			name: "Test PCO IPv4 Link MTU Request Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
+				format: "numeric",
+			},
+			want:    "PCO",
+			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: uint16(16), ProtocolContents: "Bdw="}}},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO IPv4 Link MTU Request Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
+				format: "text",
+			},
+			want:    "PCO",
+			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: "IPv4 Link MTU Request", ProtocolContents: "Bdw="}}},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO IPv4 Link MTU Request Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
+				format: "mixed",
+			},
+			want:    "PCO",
+			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: "IPv4 Link MTU Request (0x0010)", ProtocolContents: "Bdw="}}},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
