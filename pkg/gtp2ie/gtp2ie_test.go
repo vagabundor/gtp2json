@@ -386,6 +386,45 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: "IPv4 Link MTU Request (0x0010)", ProtocolContents: "Bdw="}}},
 			wantErr: false,
 		},
+		{
+			name: "Test Cause Numeric",
+			args: args{
+				ie: gtp2.IE{Type: IETypeCause, Content: []byte{0x10, 0x06}},
+			},
+			want:    "Cause",
+			want1:   Cause{CauseValue: uint8(16), PCE: true, BCE: true, CS: 0},
+			wantErr: false,
+		},
+		{
+			name: "Test Cause Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeCause, Content: []byte{0x10, 0x06}},
+				format: "text",
+			},
+			want: "Cause",
+			want1: Cause{
+				CauseValue: "Request accepted",
+				PCE:        true,
+				BCE:        true,
+				CS:         0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test Cause Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeCause, Content: []byte{0x10, 0x06}},
+				format: "mixed",
+			},
+			want: "Cause",
+			want1: Cause{
+				CauseValue: "Request accepted (16)",
+				PCE:        true,
+				BCE:        true,
+				CS:         0,
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
