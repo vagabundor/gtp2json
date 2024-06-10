@@ -176,6 +176,42 @@ func TestProcessIE(t *testing.T) {
 			want1:   nil,
 			wantErr: true,
 		},
+		{
+			name: "Test EBI Valid Low Boundary",
+			args: args{
+				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{0x06}}, // EBI = 6
+			},
+			want:    "EBI",
+			want1:   uint8(6),
+			wantErr: false,
+		},
+		{
+			name: "Test EBI Valid High Boundary",
+			args: args{
+				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{0x0F}}, // EBI = 15
+			},
+			want:    "EBI",
+			want1:   uint8(15),
+			wantErr: false,
+		},
+		{
+			name: "Test EBI Invalid Zero",
+			args: args{
+				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{0x00}}, // EBI = 0
+			},
+			want:    "EBI",
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name: "Test EBI Missing Data",
+			args: args{
+				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{}}, // No data
+			},
+			want:    "EBI",
+			want1:   nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
