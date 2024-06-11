@@ -182,7 +182,7 @@ func TestProcessIE(t *testing.T) {
 				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{0x06}}, // EBI = 6
 			},
 			want:    "EBI",
-			want1:   uint8(6),
+			want1:   EBI(6),
 			wantErr: false,
 		},
 		{
@@ -191,7 +191,7 @@ func TestProcessIE(t *testing.T) {
 				ie: gtp2.IE{Type: IETypeEBI, Content: []byte{0x0F}}, // EBI = 15
 			},
 			want:    "EBI",
-			want1:   uint8(15),
+			want1:   EBI(15),
 			wantErr: false,
 		},
 		{
