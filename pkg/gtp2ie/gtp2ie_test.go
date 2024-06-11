@@ -212,6 +212,46 @@ func TestProcessIE(t *testing.T) {
 			want1:   nil,
 			wantErr: true,
 		},
+		{
+			name: "Test BearerQoS Decoding",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypeBearerQoS,
+					Content: []byte{
+						0x5A,                         // Flags (PCI=1, PL=6, PVI=1)
+						0x09,                         // Label (QCI=9)
+						0x00, 0x0F, 0xFF, 0xFF, 0xFF, // MBRUL = 268435455
+						0x00, 0x0F, 0xFF, 0xFF, 0xFF, // MBRDL = 268435455
+						0x00, 0x0A, 0x00, 0x00, 0x00, // GBRUL = 167772160
+						0x00, 0x0A, 0x00, 0x00, 0x00, // GBRDL = 167772160
+					},
+				},
+			},
+			want: "BearerQoS",
+			want1: BearerQoS{
+				PCI:   false, // PCI = 1 -> Disabled (False)
+				PL:    6,
+				PVI:   true, // PVI = 0 -> Enabled (True)
+				QCI:   9,
+				MBRUL: 268435455,
+				MBRDL: 268435455,
+				GBRUL: 167772160,
+				GBRDL: 167772160,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test BearerQoS Decoding with Insufficient Data",
+			args: args{
+				ie: gtp2.IE{
+					Type:    IETypeBearerQoS,
+					Content: []byte{0x5A}, // Incomplete data
+				},
+			},
+			want:    "BearerQoS",
+			want1:   nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
