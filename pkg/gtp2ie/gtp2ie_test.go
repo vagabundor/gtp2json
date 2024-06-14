@@ -252,6 +252,49 @@ func TestProcessIE(t *testing.T) {
 			want1:   nil,
 			wantErr: true,
 		},
+		{
+			name: "Test BearerContext Decoding with all fields",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypeBearerContext,
+					Content: []byte{
+						0x49, 0x00, 0x01, 0x00, 0x06, // EBI: type 73, length 1, value 6
+						0x50, 0x00, 0x16, 0x00, 0x48, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // BearerQoS
+						0x02, 0x00, 0x02, 0x00, 0x10, 0x00, // Cause: type 2, length 2, value 16 with flags 0x00
+						0x57, 0x00, 0x09, 0x00, 0x8a, 0x3f, 0x0f, 0xed, 0x23, 0xd9, 0x94, 0x30, 0xea, // F-TEID
+					},
+				},
+			},
+			want: "BearerContext",
+			want1: BearerContext{
+				EBI: EBI(6),
+				BearerQoS: BearerQoS{
+					PCI:   false,
+					PL:    uint8(2),
+					PVI:   true,
+					QCI:   uint8(8),
+					MBRUL: uint64(0),
+					MBRDL: uint64(0),
+					GBRUL: uint64(0),
+					GBRDL: uint64(0),
+				},
+				Cause: Cause{
+					CauseValue: uint8(16),
+					PCE:        false,
+					BCE:        false,
+					CS:         uint8(0),
+				},
+				FTEIDs: []FTEID{
+					{
+						InterfaceType: uint8(10),
+						TEIDGREKey:    "3f0fed23",
+						IPv4:          "217.148.48.234",
+						IPv6:          "",
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
