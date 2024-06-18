@@ -553,6 +553,36 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Test UETimeZone Numeric",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeUETimeZone, Content: []byte{0x10, 0x02}},
+				format: "numeric",
+			},
+			want:    "UETimeZone",
+			want1:   UETimeZone{TimeZone: "GMT + 0 hours 15 minutes", DSTAdjustment: uint8(2)},
+			wantErr: false,
+		},
+		{
+			name: "Test UETimeZone Text",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeUETimeZone, Content: []byte{0xA9, 0x01}},
+				format: "text",
+			},
+			want:    "UETimeZone",
+			want1:   UETimeZone{TimeZone: "GMT - 3 hours 0 minutes", DSTAdjustment: "+1 hour adjustment for Daylight Saving Time"},
+			wantErr: false,
+		},
+		{
+			name: "Test UETimeZone Mixed",
+			args: args{
+				ie:     gtp2.IE{Type: IETypeUETimeZone, Content: []byte{0x02, 0x00}},
+				format: "mixed",
+			},
+			want:    "UETimeZone",
+			want1:   UETimeZone{TimeZone: "GMT + 5 hours 0 minutes", DSTAdjustment: "No adjustment for Daylight Saving Time (0)"},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

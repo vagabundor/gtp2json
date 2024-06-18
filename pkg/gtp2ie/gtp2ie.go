@@ -27,6 +27,7 @@ const (
 	IETypeBearerQoS      = 80
 	IETypeBearerContext  = 93
 	IETypeRecovery       = 3
+	IETypeUETimeZone     = 114
 )
 
 // ieTypeNames maps IE types to their string representations
@@ -51,6 +52,7 @@ var ieTypeNames = map[uint8]string{
 	IETypeBearerQoS:      "BearerQoS",
 	IETypeBearerContext:  "BearerContext",
 	IETypeRecovery:       "Recovery",
+	IETypeUETimeZone:     "UETimeZone",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -100,6 +102,8 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodeFunc = DecodeBearerContext
 	case IETypeRecovery:
 		decodeFunc = DecodeRecovery
+	case IETypeUETimeZone:
+		decodeFunc = DecodeUETimeZone
 	default:
 		return ieName, hex.EncodeToString(ie.Content), nil
 	}
