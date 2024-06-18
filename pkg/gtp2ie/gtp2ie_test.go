@@ -295,6 +295,15 @@ func TestProcessIE(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Test Recovery Decoding",
+			args: args{
+				ie: gtp2.IE{Type: IETypeRecovery, Content: []byte{0x05}},
+			},
+			want:    "Recovery",
+			want1:   Recovery(5),
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
