@@ -7,56 +7,56 @@ import (
 )
 
 const (
-	IETypeIMSI                    = 1
-	IETypeMSISDN                  = 76
-	IETypeMEI                     = 75
-	IETypeFTEID                   = 87
-	IETypeULI                     = 86
-	IETypeServingNet              = 83
-	IETypeRATType                 = 82
-	IETypeIndication              = 77
-	IETypeAPN                     = 71
-	IETypeSelectionMode           = 128
-	IETypePDNType                 = 99
-	IETypePAA                     = 79
-	IETypeAPNRestriction          = 127
-	IETypeAMBR                    = 72
-	IETypePCO                     = 78
-	IETypeCause                   = 2
-	IETypeEBI                     = 73
-	IETypeBearerQoS               = 80
-	IETypeBearerContext           = 93
-	IETypeRecovery                = 3
-	IETypeUETimeZone              = 114
-	IETypeChargingCharacteristics = 95
-	IETypeULITimestamp            = 170
+	IETypeIMSI           = 1
+	IETypeMSISDN         = 76
+	IETypeMEI            = 75
+	IETypeFTEID          = 87
+	IETypeULI            = 86
+	IETypeServingNet     = 83
+	IETypeRATType        = 82
+	IETypeIndication     = 77
+	IETypeAPN            = 71
+	IETypeSelectionMode  = 128
+	IETypePDNType        = 99
+	IETypePAA            = 79
+	IETypeAPNRestriction = 127
+	IETypeAMBR           = 72
+	IETypePCO            = 78
+	IETypeCause          = 2
+	IETypeEBI            = 73
+	IETypeBearerQoS      = 80
+	IETypeBearerContext  = 93
+	IETypeRecovery       = 3
+	IETypeUETimeZone     = 114
+	IETypeChargingChars  = 95
+	IETypeULITimestamp   = 170
 )
 
 // ieTypeNames maps IE types to their string representations
 var ieTypeNames = map[uint8]string{
-	IETypeIMSI:                    "IMSI",
-	IETypeMSISDN:                  "MSISDN",
-	IETypeMEI:                     "MEI",
-	IETypeFTEID:                   "F-TEID",
-	IETypeULI:                     "ULI",
-	IETypeServingNet:              "ServingNetwork",
-	IETypeRATType:                 "RATType",
-	IETypeIndication:              "Indication",
-	IETypeAPN:                     "APN",
-	IETypeSelectionMode:           "SelectionMode",
-	IETypePDNType:                 "PDNType",
-	IETypePAA:                     "PAA",
-	IETypeAPNRestriction:          "APNRestriction",
-	IETypeAMBR:                    "AMBR",
-	IETypePCO:                     "PCO",
-	IETypeCause:                   "Cause",
-	IETypeEBI:                     "EBI",
-	IETypeBearerQoS:               "BearerQoS",
-	IETypeBearerContext:           "BearerContext",
-	IETypeRecovery:                "Recovery",
-	IETypeUETimeZone:              "UETimeZone",
-	IETypeChargingCharacteristics: "ChargingCharacteristics",
-	IETypeULITimestamp:            "ULITimestamp",
+	IETypeIMSI:           "IMSI",
+	IETypeMSISDN:         "MSISDN",
+	IETypeMEI:            "MEI",
+	IETypeFTEID:          "F-TEID",
+	IETypeULI:            "ULI",
+	IETypeServingNet:     "ServingNetwork",
+	IETypeRATType:        "RATType",
+	IETypeIndication:     "Indication",
+	IETypeAPN:            "APN",
+	IETypeSelectionMode:  "SelectionMode",
+	IETypePDNType:        "PDNType",
+	IETypePAA:            "PAA",
+	IETypeAPNRestriction: "APNRestriction",
+	IETypeAMBR:           "AMBR",
+	IETypePCO:            "PCO",
+	IETypeCause:          "Cause",
+	IETypeEBI:            "EBI",
+	IETypeBearerQoS:      "BearerQoS",
+	IETypeBearerContext:  "BearerContext",
+	IETypeRecovery:       "Recovery",
+	IETypeUETimeZone:     "UETimeZone",
+	IETypeChargingChars:  "ChargingCharacteristics",
+	IETypeULITimestamp:   "ULITimestamp",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -108,8 +108,8 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodeFunc = DecodeRecovery
 	case IETypeUETimeZone:
 		decodeFunc = DecodeUETimeZone
-	case IETypeChargingCharacteristics:
-		decodeFunc = DecodeChargingCharacteristics
+	case IETypeChargingChars:
+		decodeFunc = DecodeChargingChars
 	case IETypeULITimestamp:
 		decodeFunc = DecodeULITimestamp
 	default:

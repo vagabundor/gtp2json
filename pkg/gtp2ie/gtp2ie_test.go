@@ -307,16 +307,16 @@ func TestProcessIE(t *testing.T) {
 		{
 			name: "Test ChargingCharacteristics Decoding",
 			args: args{
-				ie: gtp2.IE{Type: IETypeChargingCharacteristics, Content: []byte{0x09, 0x00}},
+				ie: gtp2.IE{Type: IETypeChargingChars, Content: []byte{0x09, 0x00}},
 			},
 			want:    "ChargingCharacteristics",
-			want1:   ChargingCharacteristics{RawValue: "0x0900"},
+			want1:   ChargingChars{RawValue: "0x0900"},
 			wantErr: false,
 		},
 		{
 			name: "Test ChargingCharacteristics Decoding with insufficient data",
 			args: args{
-				ie: gtp2.IE{Type: IETypeChargingCharacteristics, Content: []byte{0x09}},
+				ie: gtp2.IE{Type: IETypeChargingChars, Content: []byte{0x09}},
 			},
 			want:    "ChargingCharacteristics",
 			want1:   nil,
