@@ -30,6 +30,7 @@ const (
 	IETypeUETimeZone     = 114
 	IETypeChargingChars  = 95
 	IETypeULITimestamp   = 170
+	IETypeEPCO           = 197
 )
 
 // ieTypeNames maps IE types to their string representations
@@ -57,6 +58,7 @@ var ieTypeNames = map[uint8]string{
 	IETypeUETimeZone:     "UETimeZone",
 	IETypeChargingChars:  "ChargingCharacteristics",
 	IETypeULITimestamp:   "ULITimestamp",
+	IETypeEPCO:           "ePCO",
 }
 
 // ProcessIE decodes the content of a given IE based on its type
@@ -112,6 +114,8 @@ func ProcessIE(ie gtp2.IE) (string, interface{}, error) {
 		decodeFunc = DecodeChargingChars
 	case IETypeULITimestamp:
 		decodeFunc = DecodeULITimestamp
+	case IETypeEPCO:
+		decodeFunc = DecodePCO
 	default:
 		return ieName, hex.EncodeToString(ie.Content), nil
 	}
