@@ -322,6 +322,24 @@ func TestProcessIE(t *testing.T) {
 			want1:   nil,
 			wantErr: true,
 		},
+		{
+			name: "Test ULITimestamp Decoding",
+			args: args{
+				ie: gtp2.IE{Type: IETypeULITimestamp, Content: []byte{0xE9, 0x27, 0xD8, 0xD4}},
+			},
+			want:    "ULITimestamp",
+			want1:   "Dec 16, 2023 08:05:40 UTC",
+			wantErr: false,
+		},
+		{
+			name: "Test ULITimestamp Decoding with insufficient data",
+			args: args{
+				ie: gtp2.IE{Type: IETypeULITimestamp, Content: []byte{0x00, 0x00}},
+			},
+			want:    "ULITimestamp",
+			want1:   nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
