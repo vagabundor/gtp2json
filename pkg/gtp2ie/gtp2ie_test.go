@@ -521,36 +521,6 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Test PCO IPv4 Link MTU Request Numeric",
-			args: args{
-				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
-				format: "numeric",
-			},
-			want:    "PCO",
-			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: uint16(16), ProtocolContents: "Bdw="}}},
-			wantErr: false,
-		},
-		{
-			name: "Test PCO IPv4 Link MTU Request Text",
-			args: args{
-				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
-				format: "text",
-			},
-			want:    "PCO",
-			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: "IPv4 Link MTU Request", ProtocolContents: "Bdw="}}},
-			wantErr: false,
-		},
-		{
-			name: "Test PCO IPv4 Link MTU Request Mixed",
-			args: args{
-				ie:     gtp2.IE{Type: IETypePCO, Content: []byte{0x80, 0x00, 0x10, 0x02, 0x05, 0xdc}},
-				format: "mixed",
-			},
-			want:    "PCO",
-			want1:   PCO{ConfigurationProtocol: 128, Options: []PCOOption{{ProtocolID: "IPv4 Link MTU Request (0x0010)", ProtocolContents: "Bdw="}}},
-			wantErr: false,
-		},
-		{
 			name: "Test Cause Numeric",
 			args: args{
 				ie: gtp2.IE{Type: IETypeCause, Content: []byte{0x10, 0x06}},
@@ -617,6 +587,687 @@ func TestProcessIE_AllFormats(t *testing.T) {
 			},
 			want:    "UETimeZone",
 			want1:   UETimeZone{TimeZone: "GMT + 5 hours 0 minutes", DSTAdjustment: "No adjustment for Daylight Saving Time (0)"},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with P-CSCF IPv4 Address Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x04, 0xC0, 0xA8, 0x00, 0x01,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x000C),
+						ProtocolContents: "192.168.0.1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with P-CSCF IPv4 Address Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x04, 0xC0, 0xA8, 0x00, 0x01,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "P-CSCF IPv4 Address",
+						ProtocolContents: "192.168.0.1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with P-CSCF IPv4 Address Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x04, 0xC0, 0xA8, 0x00, 0x01,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "P-CSCF IPv4 Address (12)",
+						ProtocolContents: "192.168.0.1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with DNS Server IPv4 Address Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x04, 0x08, 0x08, 0x08, 0x08,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x000D),
+						ProtocolContents: "8.8.8.8",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with DNS Server IPv4 Address Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x04, 0x08, 0x08, 0x08, 0x08,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "DNS Server IPv4 Address",
+						ProtocolContents: "8.8.8.8",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with DNS Server IPv4 Address Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x04, 0x08, 0x08, 0x08, 0x08,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "DNS Server IPv4 Address (13)",
+						ProtocolContents: "8.8.8.8",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty P-CSCF IPv4 Address Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x00,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x000C),
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty P-CSCF IPv4 Address Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x00,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "P-CSCF IPv4 Address",
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty P-CSCF IPv4 Address Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0C, 0x00,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "P-CSCF IPv4 Address (12)",
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty DNS Server IPv4 Address Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x00,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x000D),
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty DNS Server IPv4 Address Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x00,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "DNS Server IPv4 Address",
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with Empty DNS Server IPv4 Address Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x0D, 0x00,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "DNS Server IPv4 Address (13)",
+						ProtocolContents: nil,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPv4 Link MTU Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x10, 0x02, 0x05, 0xdc, // MTU 1500
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x0010),
+						ProtocolContents: uint16(1500),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPv4 Link MTU Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x10, 0x02, 0x05, 0xdc, // MTU 1500
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "IPv4 Link MTU",
+						ProtocolContents: uint16(1500),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPv4 Link MTU Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x10, 0x02, 0x05, 0xdc, // MTU 1500
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "IPv4 Link MTU (16)",
+						ProtocolContents: uint16(1500),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPCP Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x80, 0x21, 0x0A, 0x03, 0x01, 0x00, 0x0A, 0x81, 0x06, 0xc6, 0x12, 0x40, 0x06, // IPCP with Primary DNS 198.18.64.6
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: uint16(0x8021),
+						ProtocolContents: IPCP{
+							Code:       3,
+							Length:     10,
+							Identifier: 1,
+							Options: []IPCPOption{
+								{
+									Type: uint8(0x81),
+									Data: "198.18.64.6",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPCP Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x80, 0x21, 0x0A, 0x03, 0x01, 0x00, 0x0A, 0x81, 0x06, 0xc6, 0x12, 0x40, 0x06, // IPCP with Primary DNS 198.18.64.6
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "IPCP",
+						ProtocolContents: IPCP{
+							Code:       3,
+							Length:     10,
+							Identifier: 1,
+							Options: []IPCPOption{
+								{
+									Type: "Primary DNS Server IP Address",
+									Data: "198.18.64.6",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with IPCP Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x80, 0x21, 0x0A, 0x03, 0x01, 0x00, 0x0A, 0x81, 0x06, 0xc6, 0x12, 0x40, 0x06, // IPCP with Primary DNS 198.18.64.6
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "IPCP (32801)",
+						ProtocolContents: IPCP{
+							Code:       3,
+							Length:     10,
+							Identifier: 1,
+							Options: []IPCPOption{
+								{
+									Type: "Primary DNS Server IP Address (129)",
+									Data: "198.18.64.6",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with PAP Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc0, 0x23, 0x10, 0x01, 0x00, 0x00, 0x10, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: uint16(0xC023),
+						ProtocolContents: PAP{
+							Code:       1,
+							Identifier: 0,
+							Username:   "motiv",
+							Password:   "motiv",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with PAP Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc0, 0x23, 0x10, 0x01, 0x00, 0x00, 0x10, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "PAP",
+						ProtocolContents: PAP{
+							Code:       1,
+							Identifier: 0,
+							Username:   "motiv",
+							Password:   "motiv",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with PAP Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc0, 0x23, 0x10, 0x01, 0x00, 0x00, 0x10, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76, 0x05, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "PAP (49187)",
+						ProtocolContents: PAP{
+							Code:       1,
+							Identifier: 0,
+							Username:   "motiv",
+							Password:   "motiv",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with SelectedBearerControlMode Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x05, 0x01, 0x02,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       uint16(0x0005),
+						ProtocolContents: uint8(2),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with SelectedBearerControlMode Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x05, 0x01, 0x02,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "MS Support of Network Bearer Control indicator",
+						ProtocolContents: "MS/NW",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with SelectedBearerControlMode Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0x00, 0x05, 0x01, 0x02,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID:       "MS Support of Network Bearer Control indicator (5)",
+						ProtocolContents: "MS/NW (2)",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with CHAP Numeric",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc2, 0x23, 0x1A, 0x02, 0x01, 0x00, 0x1a, 0x10, 0xdd, 0xf0, 0x5f, 0x13, 0x58, 0xd4, 0x17, 0x96, 0x27, 0xb4, 0x45, 0xe2, 0x02, 0xb0, 0xed, 0x23, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "numeric",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: uint16(0xC223),
+						ProtocolContents: CHAP{
+							Code:       2,
+							Identifier: 1,
+							Value:      "ddf05f1358d4179627b445e202b0ed23",
+							Name:       "motiv",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with CHAP Text",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc2, 0x23, 0x1A, 0x02, 0x01, 0x00, 0x1a, 0x10, 0xdd, 0xf0, 0x5f, 0x13, 0x58, 0xd4, 0x17, 0x96, 0x27, 0xb4, 0x45, 0xe2, 0x02, 0xb0, 0xed, 0x23, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "text",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "CHAP",
+						ProtocolContents: CHAP{
+							Code:       2,
+							Identifier: 1,
+							Value:      "ddf05f1358d4179627b445e202b0ed23",
+							Name:       "motiv",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Test PCO with CHAP Mixed",
+			args: args{
+				ie: gtp2.IE{
+					Type: IETypePCO,
+					Content: []byte{
+						0x80, 0xc2, 0x23, 0x1A, 0x02, 0x01, 0x00, 0x1a, 0x10, 0xdd, 0xf0, 0x5f, 0x13, 0x58, 0xd4, 0x17, 0x96, 0x27, 0xb4, 0x45, 0xe2, 0x02, 0xb0, 0xed, 0x23, 0x6d, 0x6f, 0x74, 0x69, 0x76,
+					},
+				},
+				format: "mixed",
+			},
+			want: "PCO",
+			want1: PCO{
+				ConfigurationProtocol: 128,
+				Options: []PCOOption{
+					{
+						ProtocolID: "CHAP (49699)",
+						ProtocolContents: CHAP{
+							Code:       2,
+							Identifier: 1,
+							Value:      "ddf05f1358d4179627b445e202b0ed23",
+							Name:       "motiv",
+						},
+					},
+				},
+			},
 			wantErr: false,
 		},
 	}
