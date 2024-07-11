@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+RUN mkdir -p /app
+
+COPY gtp2json /app/gtp2json
+
+COPY testdata.pcap /app/testdata.pcap
+
+WORKDIR /app
+
+#ENTRYPOINT ["/app/gtp2json"]
