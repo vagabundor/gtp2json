@@ -7,7 +7,7 @@ all: build
 deps:
 	go mod tidy
 
-build: deps docker-build extract docker-build-minimal
+build: deps docker-build extract
 
 docker-build:
 	sudo docker build -t gtp2json-build .
