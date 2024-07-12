@@ -13,8 +13,9 @@ docker-build:
 	sudo docker build -t gtp2json-build .
 
 extract:
+	@echo "Extracting binary from Docker container..."
 	CONTAINER_ID=$$(sudo docker create gtp2json-build) && \
-	sudo docker cp $$CONTAINER_ID:/src/gtp2json ./gtp2json && \
+	sudo docker cp $$CONTAINER_ID:/src/$(BINARY) ./$(BINARY) && \
 	sudo docker rm $$CONTAINER_ID
 
 docker-build-minimal:

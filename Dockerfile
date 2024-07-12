@@ -1,8 +1,8 @@
-FROM karalabe/xgo-latest
+FROM golang:1.20-alpine as builder
 
-RUN apt-get update && apt-get install -y libpcap-dev
+RUN apk add --no-cache build-base libpcap-dev
 
 COPY . /src
 WORKDIR /src
 
-RUN go build -ldflags '-w -extldflags "-static"' -o gtp2json ./cmd/main.go
+RUN CGO_ENABLED=1 CC=gcc go build -ldflags '-w -extldflags "-static"' -o /src/gtp2json ./cmd/main.go
