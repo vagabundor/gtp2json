@@ -53,6 +53,7 @@ services:
       G2J_KAFKABROKER: kafka:9092
       G2J_KAFKATOPIC: gtp_packets
       G2J_INTERFACE: eth0
+      G2J_PACKETBUFFERSIZE: 250000
     networks:
       - kafka-net
 

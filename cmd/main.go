@@ -43,6 +43,7 @@ func main() {
 
 	pflag.String("file", "", "Path to the pcap file to analyze")
 	pflag.String("interface", "", "Name of the interface to analyze")
+	pflag.Int("packetBufferSize", 200000, "Size of the packet buffer channel")
 	pflag.String("format", "numeric", "Specifies the format of the output (numeric, text, mixed)")
 	pflag.String("kafkaBroker", "", "Address of the Kafka broker (if not set, output to stdout)")
 	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
@@ -54,6 +55,7 @@ func main() {
 
 	pcapFile := viper.GetString("file")
 	iface := viper.GetString("interface")
+	packetBufferSize := viper.GetInt("packetBufferSize")
 	kafkaBroker := viper.GetString("kafkaBroker")
 	kafkaTopic := viper.GetString("kafkaTopic")
 
@@ -74,7 +76,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("pcapFile: %s, iface: %s, kafkaBroker: %s, kafkaTopic: %s\n", pcapFile, iface, kafkaBroker, kafkaTopic)
+	fmt.Printf("pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s\n", pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic)
 
 	var err error
 	if kafkaBroker != "" {
@@ -85,7 +87,7 @@ func main() {
 		defer producer.Close()
 	}
 
-	packetChan := make(chan gopacket.Packet, 200000)
+	packetChan := make(chan gopacket.Packet, packetBufferSize)
 	doneChan := make(chan struct{})
 
 	go processPackets(packetChan, kafkaBroker, kafkaTopic, doneChan)
