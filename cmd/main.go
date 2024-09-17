@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
@@ -10,6 +9,9 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/IBM/sarama"
 	"github.com/google/gopacket"
@@ -38,34 +40,41 @@ type GTPv2Packet struct {
 var producer sarama.SyncProducer
 
 func main() {
-	var pcapFile string
-	var iface string
-	var format string
-	var kafkaBroker string
-	var kafkaTopic string
 
-	flag.StringVar(&pcapFile, "f", "", "Path to the pcap file to analyze")
-	flag.StringVar(&iface, "i", "", "Name of the interface to analyze")
-	flag.StringVar(&format, "format", "numeric", "Specifies the format of the output")
-	flag.StringVar(&kafkaBroker, "kafkaBroker", "", "Address of the Kafka broker (if not set, output to stdout)")
-	flag.StringVar(&kafkaTopic, "kafkaTopic", "gtp_packets", "Kafka topic to send data to")
+	pflag.String("file", "", "Path to the pcap file to analyze")
+	pflag.String("interface", "", "Name of the interface to analyze")
+	pflag.String("format", "numeric", "Specifies the format of the output (numeric, text, mixed)")
+	pflag.String("kafkaBroker", "", "Address of the Kafka broker (if not set, output to stdout)")
+	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
+	pflag.Parse()
 
-	flag.Parse()
+	viper.SetEnvPrefix("G2J")
+	viper.AutomaticEnv()
+	viper.BindPFlags(pflag.CommandLine)
+
+	pcapFile := viper.GetString("file")
+	iface := viper.GetString("interface")
+	kafkaBroker := viper.GetString("kafkaBroker")
+	kafkaTopic := viper.GetString("kafkaTopic")
 
 	if pcapFile == "" && iface == "" {
-		fmt.Println("Please specify a pcap file using -f or an interface using -i")
+		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
 		fmt.Println("Example: gtp2json --file captured.pcap or gtp2json --interface eth0")
-		flag.PrintDefaults()
+		pflag.PrintDefaults()
 		return
 	}
 
+	format := viper.GetString("format")
 	switch format {
 	case "numeric", "text", "mixed":
 		config.SetOutputFormat(format)
+		fmt.Printf("Output format set to: %s\n", format)
 	default:
 		fmt.Fprintf(os.Stderr, "Error: '%s' is not a valid format. Use 'numeric', 'text', or 'mixed'.\n", format)
 		return
 	}
+
+	fmt.Printf("pcapFile: %s, iface: %s, kafkaBroker: %s, kafkaTopic: %s\n", pcapFile, iface, kafkaBroker, kafkaTopic)
 
 	var err error
 	if kafkaBroker != "" {
