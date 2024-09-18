@@ -37,7 +37,11 @@ type GTPv2Packet struct {
 	IEs              []IE      `json:"ies"`
 }
 
-var producer sarama.SyncProducer
+var (
+	producer      sarama.SyncProducer
+	maxRetries    int
+	retryInterval time.Duration
+)
 
 func main() {
 
@@ -47,6 +51,8 @@ func main() {
 	pflag.String("format", "numeric", "Specifies the format of the output (numeric, text, mixed)")
 	pflag.String("kafkaBroker", "", "Address of the Kafka broker (if not set, output to stdout)")
 	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
+	pflag.Int("maxRetries", 25, "Maximum number of retries for Kafka connection (use 0 for infinite retries)")
+	pflag.Duration("retryInterval", 5*time.Second, "Interval between retries for Kafka connection")
 	pflag.Parse()
 
 	viper.SetEnvPrefix("G2J")
@@ -58,12 +64,18 @@ func main() {
 	packetBufferSize := viper.GetInt("packetBufferSize")
 	kafkaBroker := viper.GetString("kafkaBroker")
 	kafkaTopic := viper.GetString("kafkaTopic")
+	maxRetries = viper.GetInt("maxRetries")
+	retryInterval = viper.GetDuration("retryInterval")
 
 	if pcapFile == "" && iface == "" {
 		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
 		fmt.Println("Example: gtp2json --file captured.pcap or gtp2json --interface eth0")
 		pflag.PrintDefaults()
 		return
+	}
+
+	if retryInterval == 0 {
+		log.Fatalf("Invalid retryInterval format. Please specify a valid duration like '5s', '1m', etc.")
 	}
 
 	format := viper.GetString("format")
@@ -76,13 +88,16 @@ func main() {
 		return
 	}
 
-	fmt.Printf("pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s\n", pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic)
+	fmt.Printf(
+		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, maxRetries: %d, retryInterval: %v\n",
+		pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic, maxRetries, retryInterval,
+	)
 
 	var err error
 	if kafkaBroker != "" {
-		producer, err = sarama.NewSyncProducer([]string{kafkaBroker}, nil)
+		producer, err = createKafkaProducer(kafkaBroker, maxRetries, retryInterval)
 		if err != nil {
-			log.Fatalf("Failed to start Sarama producer: %v", err)
+			log.Fatalf("Failed to start Sarama producer after retries: %v", err)
 		}
 		defer producer.Close()
 	}
@@ -118,6 +133,24 @@ func main() {
 
 	close(packetChan)
 	<-doneChan
+}
+
+func createKafkaProducer(broker string, maxRetries int, retryInterval time.Duration) (sarama.SyncProducer, error) {
+	var producer sarama.SyncProducer
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		producer, err = sarama.NewSyncProducer([]string{broker}, nil)
+		if err == nil {
+			log.Printf("Connected to Kafka after %d attempt(s)\n", i+1)
+			return producer, nil
+		}
+
+		log.Printf("Failed to connect to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
+		time.Sleep(retryInterval)
+	}
+
+	return nil, fmt.Errorf("could not connect to Kafka after %d attempts: %v", maxRetries, err)
 }
 
 func processPackets(packetChan <-chan gopacket.Packet, kafkaBroker, kafkaTopic string, doneChan chan<- struct{}) {
@@ -184,19 +217,34 @@ func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string) {
 	}
 }
 
-func sendToKafka(data []byte, kafkaTopic string) {
+func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryInterval time.Duration) {
 	msg := &sarama.ProducerMessage{
 		Topic: kafkaTopic,
 		Value: sarama.ByteEncoder(data),
 	}
 
-	partition, offset, err := producer.SendMessage(msg)
-	if err != nil {
-		log.Printf("Failed to send message to Kafka: %v", err)
-		return
+	for i := 0; i < maxRetries; i++ {
+		partition, offset, err := producer.SendMessage(msg)
+		if err != nil {
+			log.Printf("Failed to send message to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
+
+			producer, err = createKafkaProducer(viper.GetString("kafkaBroker"), maxRetries, retryInterval)
+			if err != nil {
+				log.Printf("Failed to reconnect to Kafka: %v\n", err)
+				time.Sleep(retryInterval)
+				continue
+			}
+		} else {
+			log.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", kafkaTopic, partition, offset)
+			return
+		}
 	}
 
-	log.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", kafkaTopic, partition, offset)
+	log.Println("Failed to send message to Kafka after retries")
+}
+
+func sendToKafka(data []byte, kafkaTopic string) {
+	sendToKafkaWithRetry(data, kafkaTopic, maxRetries, retryInterval)
 }
 
 func outputToStdout(data []byte) {
