@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine as builder
+FROM golang:1.20-alpine AS builder
 
 RUN apk add --no-cache build-base libpcap-dev
 
