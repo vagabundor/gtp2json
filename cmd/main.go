@@ -7,7 +7,9 @@ import (
 	"gtp2json/pkg/gtp2"
 	"gtp2json/pkg/gtp2ie"
 	"log"
+	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -41,9 +43,18 @@ var (
 	producer      sarama.SyncProducer
 	maxRetries    int
 	retryInterval time.Duration
+	isReady       atomic.Value
 )
 
 func main() {
+
+	http.HandleFunc("/ready", readinessHandler)
+	go func() {
+		log.Println("Starting readiness probe server on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Fatalf("Failed to start HTTP server: %v", err)
+		}
+	}()
 
 	pflag.String("file", "", "Path to the pcap file to analyze")
 	pflag.String("interface", "", "Name of the interface to analyze")
@@ -94,12 +105,15 @@ func main() {
 	)
 
 	var err error
+	isReady.Store(false)
+
 	if kafkaBroker != "" {
 		producer, err = createKafkaProducer(kafkaBroker, maxRetries, retryInterval)
 		if err != nil {
 			log.Fatalf("Failed to start Sarama producer after retries: %v", err)
 		}
 		defer producer.Close()
+		isReady.Store(true)
 	}
 
 	packetChan := make(chan gopacket.Packet, packetBufferSize)
@@ -133,6 +147,16 @@ func main() {
 
 	close(packetChan)
 	<-doneChan
+}
+
+func readinessHandler(w http.ResponseWriter, r *http.Request) {
+	if isReady.Load().(bool) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Kafka is connected"))
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("Kafka is not connected"))
+	}
 }
 
 func createKafkaProducer(broker string, maxRetries int, retryInterval time.Duration) (sarama.SyncProducer, error) {
@@ -227,20 +251,25 @@ func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryI
 		partition, offset, err := producer.SendMessage(msg)
 		if err != nil {
 			log.Printf("Failed to send message to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
+			isReady.Store(false)
 
 			producer, err = createKafkaProducer(viper.GetString("kafkaBroker"), maxRetries, retryInterval)
 			if err != nil {
 				log.Printf("Failed to reconnect to Kafka: %v\n", err)
 				time.Sleep(retryInterval)
 				continue
+			} else {
+				isReady.Store(true)
 			}
 		} else {
 			log.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", kafkaTopic, partition, offset)
+			isReady.Store(true)
 			return
 		}
 	}
 
 	log.Println("Failed to send message to Kafka after retries")
+	isReady.Store(false)
 }
 
 func sendToKafka(data []byte, kafkaTopic string) {

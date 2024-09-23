@@ -47,6 +47,8 @@ services:
     container_name: gtp2json-app
     depends_on:
       - kafka
+    ports:
+      - "8080:8080"
     environment:
       G2J_KAFKABROKER: kafka:9092
       G2J_KAFKATOPIC: gtp_packets
