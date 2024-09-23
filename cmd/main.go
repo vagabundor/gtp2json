@@ -163,7 +163,7 @@ func createKafkaProducer(broker string, maxRetries int, retryInterval time.Durat
 	var producer sarama.SyncProducer
 	var err error
 
-	for i := 0; i < maxRetries; i++ {
+	for i := 0; i < maxRetries || maxRetries == 0; i++ {
 		producer, err = sarama.NewSyncProducer([]string{broker}, nil)
 		if err == nil {
 			log.Printf("Connected to Kafka after %d attempt(s)\n", i+1)
@@ -172,6 +172,9 @@ func createKafkaProducer(broker string, maxRetries int, retryInterval time.Durat
 
 		log.Printf("Failed to connect to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
 		time.Sleep(retryInterval)
+		if maxRetries == 0 {
+			i--
+		}
 	}
 
 	return nil, fmt.Errorf("could not connect to Kafka after %d attempts: %v", maxRetries, err)
@@ -247,20 +250,23 @@ func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryI
 		Value: sarama.ByteEncoder(data),
 	}
 
-	for i := 0; i < maxRetries; i++ {
+	for i := 0; i < maxRetries || maxRetries == 0; i++ {
+
+		if !ensureProducerConnected(viper.GetString("kafkaBroker"), retryInterval) {
+			log.Println("Failed to connect to Kafka. Aborting send.")
+			return
+		}
+
 		partition, offset, err := producer.SendMessage(msg)
 		if err != nil {
 			log.Printf("Failed to send message to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
 			isReady.Store(false)
 
-			producer, err = createKafkaProducer(viper.GetString("kafkaBroker"), maxRetries, retryInterval)
-			if err != nil {
-				log.Printf("Failed to reconnect to Kafka: %v\n", err)
-				time.Sleep(retryInterval)
-				continue
-			} else {
-				isReady.Store(true)
+			if maxRetries == 0 {
+				i--
 			}
+			time.Sleep(retryInterval)
+			continue
 		} else {
 			log.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", kafkaTopic, partition, offset)
 			isReady.Store(true)
@@ -270,6 +276,21 @@ func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryI
 
 	log.Println("Failed to send message to Kafka after retries")
 	isReady.Store(false)
+}
+
+func ensureProducerConnected(broker string, retryInterval time.Duration) bool {
+	if producer == nil {
+		log.Println("Producer is not initialized. Trying to reconnect.")
+		var err error
+		producer, err = createKafkaProducer(broker, 1, retryInterval)
+		if err != nil {
+			log.Printf("Failed to reconnect to Kafka: %v\n", err)
+			return false
+		} else {
+			isReady.Store(true)
+		}
+	}
+	return true
 }
 
 func sendToKafka(data []byte, kafkaTopic string) {

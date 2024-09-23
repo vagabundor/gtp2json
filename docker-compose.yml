@@ -54,7 +54,7 @@ services:
       G2J_KAFKATOPIC: gtp_packets
       G2J_INTERFACE: eth0
       G2J_PACKETBUFFERSIZE: 250000
-      G2J_MAXRETRIES: 12
+      G2J_MAXRETRIES: 0
       G2J_RETRYINTERVAL: 10s
     networks:
       - kafka-net
