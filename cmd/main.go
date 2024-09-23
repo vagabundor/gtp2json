@@ -49,8 +49,10 @@ var (
 func main() {
 
 	http.HandleFunc("/ready", readinessHandler)
+	http.HandleFunc("/live", livenessHandler)
+
 	go func() {
-		log.Println("Starting readiness probe server on :8080")
+		log.Println("Starting readiness and liveness probe server on :8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
@@ -157,6 +159,11 @@ func readinessHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("Kafka is not connected"))
 	}
+}
+
+func livenessHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Application is alive"))
 }
 
 func createKafkaProducer(broker string, maxRetries int, retryInterval time.Duration) (sarama.SyncProducer, error) {
