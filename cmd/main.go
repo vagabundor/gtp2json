@@ -141,6 +141,10 @@ func main() {
 		}
 		defer handle.Close()
 
+		if err := handle.SetBPFFilter("udp port 2123"); err != nil {
+			log.Fatalf("Error setting BPF filter: %v", err)
+		}
+
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		for packet := range packetSource.Packets() {
 			packetChan <- packet
