@@ -6,6 +6,7 @@ import (
 	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
 	"gtp2json/pkg/gtp2ie"
+	"gtp2json/pkg/kafkabuff"
 	"log"
 	"net/http"
 	"os"
@@ -44,6 +45,8 @@ var (
 	maxRetries    int
 	retryInterval time.Duration
 	isReady       atomic.Value
+	ringBuffer    *kafkabuff.RingBuffer
+	packetChan    chan gopacket.Packet
 )
 
 func main() {
@@ -66,6 +69,9 @@ func main() {
 	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
 	pflag.Int("maxRetries", 25, "Maximum number of retries for Kafka connection (use 0 for infinite retries)")
 	pflag.Duration("retryInterval", 5*time.Second, "Interval between retries for Kafka connection")
+	pflag.Int("kafkaBufferSize", 250000, "Size of the Kafka ring buffer")
+	pflag.Int("kafkaBatchSize", 10000, "Size of the Kafka batch")
+	pflag.Duration("kafkaBatchInterval", 10*time.Second, "Interval for Kafka batch sending")
 	pflag.Parse()
 
 	viper.SetEnvPrefix("G2J")
@@ -79,6 +85,9 @@ func main() {
 	kafkaTopic := viper.GetString("kafkaTopic")
 	maxRetries = viper.GetInt("maxRetries")
 	retryInterval = viper.GetDuration("retryInterval")
+	kafkaBufferSize := viper.GetInt("kafkaBufferSize")
+	kafkaBatchSize := viper.GetInt("kafkaBatchSize")
+	kafkaBatchInterval := viper.GetDuration("kafkaBatchInterval")
 
 	if pcapFile == "" && iface == "" {
 		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
@@ -116,12 +125,15 @@ func main() {
 		}
 		defer producer.Close()
 		isReady.Store(true)
+
+		ringBuffer = kafkabuff.NewRingBuffer(kafkaBufferSize)
+		startKafkaBatchSender(ringBuffer, kafkaBatchSize, kafkaBatchInterval, kafkaTopic)
 	}
 
-	packetChan := make(chan gopacket.Packet, packetBufferSize)
+	packetChan = make(chan gopacket.Packet, packetBufferSize)
 	doneChan := make(chan struct{})
 
-	go processPackets(packetChan, kafkaBroker, kafkaTopic, doneChan)
+	go processPackets(packetChan, kafkaBroker, kafkaTopic, doneChan, ringBuffer)
 
 	if pcapFile != "" {
 		handle, err := pcap.OpenOffline(pcapFile)
@@ -191,14 +203,14 @@ func createKafkaProducer(broker string, maxRetries int, retryInterval time.Durat
 	return nil, fmt.Errorf("could not connect to Kafka after %d attempts: %v", maxRetries, err)
 }
 
-func processPackets(packetChan <-chan gopacket.Packet, kafkaBroker, kafkaTopic string, doneChan chan<- struct{}) {
+func processPackets(packetChan <-chan gopacket.Packet, kafkaBroker, kafkaTopic string, doneChan chan<- struct{}, ringBuffer *kafkabuff.RingBuffer) {
 	for packet := range packetChan {
-		processPacket(packet, kafkaBroker, kafkaTopic)
+		processPacket(packet, kafkaBroker, kafkaTopic, ringBuffer)
 	}
 	doneChan <- struct{}{}
 }
 
-func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string) {
+func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string, ringBuffer *kafkabuff.RingBuffer) {
 	gtpLayer := packet.Layer(gtp2.LayerTypeGTPv2)
 	if gtpLayer != nil {
 		gtp, ok := gtpLayer.(*gtp2.GTPv2)
@@ -248,29 +260,46 @@ func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string) {
 		}
 
 		if kafkaBroker != "" {
-			sendToKafka(jsonData, kafkaTopic)
+			sendToKafka(jsonData, kafkaTopic, ringBuffer)
 		} else {
 			outputToStdout(jsonData)
 		}
 	}
 }
 
-func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryInterval time.Duration) {
-	msg := &sarama.ProducerMessage{
-		Topic: kafkaTopic,
-		Value: sarama.ByteEncoder(data),
-	}
+func startKafkaBatchSender(ringBuffer *kafkabuff.RingBuffer, batchSize int, interval time.Duration, kafkaTopic string) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if ringBuffer.Size() > 0 {
+					batch := ringBuffer.GetBatch(batchSize)
+					sendBatchToKafkaWithRetry(batch, kafkaTopic, maxRetries, retryInterval)
+				}
+			default:
+				if ringBuffer.Size() >= batchSize {
+					batch := ringBuffer.GetBatch(batchSize)
+					sendBatchToKafkaWithRetry(batch, kafkaTopic, maxRetries, retryInterval)
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
+	}()
+}
+
+func sendBatchToKafkaWithRetry(batch []*sarama.ProducerMessage, kafkaTopic string, maxRetries int, retryInterval time.Duration) {
 
 	for i := 0; i < maxRetries || maxRetries == 0; i++ {
 
 		if !ensureProducerConnected(viper.GetString("kafkaBroker"), retryInterval) {
-			log.Println("Failed to connect to Kafka. Aborting send.")
+			log.Println("Failed to connect to Kafka. Aborting batch send.")
 			return
 		}
 
-		partition, offset, err := producer.SendMessage(msg)
+		err := producer.SendMessages(batch)
 		if err != nil {
-			log.Printf("Failed to send message to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
+			log.Printf("Failed to send batch to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
 			isReady.Store(false)
 
 			if maxRetries == 0 {
@@ -279,13 +308,13 @@ func sendToKafkaWithRetry(data []byte, kafkaTopic string, maxRetries int, retryI
 			time.Sleep(retryInterval)
 			continue
 		} else {
-			log.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", kafkaTopic, partition, offset)
+			log.Printf("Batch of %d messages sent to Kafka topic(%s)\n", len(batch), kafkaTopic)
 			isReady.Store(true)
 			return
 		}
 	}
 
-	log.Println("Failed to send message to Kafka after retries")
+	log.Println("Failed to send batch to Kafka after retries")
 	isReady.Store(false)
 }
 
@@ -304,8 +333,12 @@ func ensureProducerConnected(broker string, retryInterval time.Duration) bool {
 	return true
 }
 
-func sendToKafka(data []byte, kafkaTopic string) {
-	sendToKafkaWithRetry(data, kafkaTopic, maxRetries, retryInterval)
+func sendToKafka(data []byte, kafkaTopic string, ringBuffer *kafkabuff.RingBuffer) {
+	msg := &sarama.ProducerMessage{
+		Topic: kafkaTopic,
+		Value: sarama.ByteEncoder(data),
+	}
+	ringBuffer.Add(msg)
 }
 
 func outputToStdout(data []byte) {
