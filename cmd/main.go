@@ -187,8 +187,13 @@ func createKafkaProducer(broker string, maxRetries int, retryInterval time.Durat
 	var producer sarama.SyncProducer
 	var err error
 
+	config := sarama.NewConfig()
+
+	config.Producer.Return.Successes = true
+	config.Producer.RequiredAcks = sarama.WaitForLocal
+
 	for i := 0; i < maxRetries || maxRetries == 0; i++ {
-		producer, err = sarama.NewSyncProducer([]string{broker}, nil)
+		producer, err = sarama.NewSyncProducer([]string{broker}, config)
 		if err == nil {
 			log.Printf("Connected to Kafka after %d attempt(s)\n", i+1)
 			return producer, nil
