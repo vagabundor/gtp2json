@@ -20,6 +20,9 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type IE struct {
@@ -50,10 +53,42 @@ var (
 	packetChan    chan gopacket.Packet
 )
 
+var (
+	packetsReceived = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "pcap_packets_received_total",
+		Help: "Total number of packets received by the pcap handle.",
+	})
+	packetsDropped = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "pcap_packets_dropped_total",
+		Help: "Total number of packets dropped by the pcap handle.",
+	})
+	packetsIfDropped = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "pcap_packets_if_dropped_total",
+		Help: "Total number of packets dropped by the interface.",
+	})
+	packetChanOccupancy = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "packet_channel_occupancy",
+		Help: "Number of packets currently in packetChan.",
+	})
+	ringBufferOccupancy = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "ring_buffer_occupancy",
+		Help: "Number of messages currently in the ring buffer.",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(packetsReceived)
+	prometheus.MustRegister(packetsDropped)
+	prometheus.MustRegister(packetsIfDropped)
+	prometheus.MustRegister(packetChanOccupancy)
+	prometheus.MustRegister(ringBufferOccupancy)
+}
+
 func main() {
 
 	http.HandleFunc("/ready", readinessHandler)
 	http.HandleFunc("/live", livenessHandler)
+	http.Handle("/metrics", promhttp.Handler())
 
 	go func() {
 		log.Println("Starting readiness and liveness probe server on :8080")
@@ -136,6 +171,14 @@ func main() {
 
 	go processPackets(packetChan, kafkaBroker, kafkaTopic, doneChan, ringBuffer)
 
+	go func() {
+		for {
+			packetChanOccupancy.Set(float64(len(packetChan)))
+			ringBufferOccupancy.Set(float64(ringBuffer.Size()))
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	if pcapFile != "" {
 		handle, err := pcap.OpenOffline(pcapFile)
 		if err != nil {
@@ -157,6 +200,27 @@ func main() {
 		if err := handle.SetBPFFilter("udp port 2123"); err != nil {
 			log.Fatalf("Error setting BPF filter: %v", err)
 		}
+
+		go func() {
+			var prevReceived, prevDropped, prevIfDropped int
+			for {
+				stats, err := handle.Stats()
+				if err != nil {
+					log.Printf("Error getting stats: %v", err)
+					continue
+				}
+
+				packetsReceived.Add(float64(stats.PacketsReceived - prevReceived))
+				packetsDropped.Add(float64(stats.PacketsDropped - prevDropped))
+				packetsIfDropped.Add(float64(stats.PacketsIfDropped - prevIfDropped))
+
+				prevReceived = stats.PacketsReceived
+				prevDropped = stats.PacketsDropped
+				prevIfDropped = stats.PacketsIfDropped
+
+				time.Sleep(5 * time.Second)
+			}
+		}()
 
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		for packet := range packetSource.Packets() {
