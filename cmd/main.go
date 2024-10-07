@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
@@ -299,19 +300,27 @@ func sendBatchToKafkaWithRetry(batch []*sarama.ProducerMessage, kafkaTopic strin
 
 		err := producer.SendMessages(batch)
 		if err != nil {
-			log.Printf("Failed to send batch to Kafka (attempt %d/%d): %v\n", i+1, maxRetries, err)
-			isReady.Store(false)
-
-			if maxRetries == 0 {
-				i--
+			var producerErrors sarama.ProducerErrors
+			if errors.As(err, &producerErrors) {
+				var failedMessages []*sarama.ProducerMessage
+				for _, pe := range producerErrors {
+					failedMessages = append(failedMessages, pe.Msg)
+				}
+				batch = failedMessages
+				log.Printf("Retrying to send %d failed messages", len(failedMessages))
+				time.Sleep(retryInterval)
+				continue
+			} else {
+				log.Printf("Failed to send batch to Kafka: %v", err)
+				isReady.Store(false)
+				time.Sleep(retryInterval)
+				continue
 			}
-			time.Sleep(retryInterval)
-			continue
-		} else {
-			log.Printf("Batch of %d messages sent to Kafka topic(%s)\n", len(batch), kafkaTopic)
-			isReady.Store(true)
-			return
 		}
+
+		log.Printf("Batch of %d messages sent to Kafka topic(%s)\n", len(batch), kafkaTopic)
+		isReady.Store(true)
+		return
 	}
 
 	log.Println("Failed to send batch to Kafka after retries")
