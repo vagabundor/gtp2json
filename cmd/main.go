@@ -74,6 +74,20 @@ var (
 		Name: "ring_buffer_occupancy",
 		Help: "Number of messages currently in the ring buffer.",
 	})
+	packetBufferSizeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "packet_buffer_size",
+		Help: "Size of the packet buffer channel",
+	})
+
+	kafkaBufferSizeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "kafka_buffer_size",
+		Help: "Size of the Kafka ring buffer",
+	})
+
+	kafkaBatchSizeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "kafka_batch_size",
+		Help: "Size of the Kafka batch",
+	})
 )
 
 func init() {
@@ -82,6 +96,9 @@ func init() {
 	prometheus.MustRegister(packetsIfDropped)
 	prometheus.MustRegister(packetChanOccupancy)
 	prometheus.MustRegister(ringBufferOccupancy)
+	prometheus.MustRegister(packetBufferSizeGauge)
+	prometheus.MustRegister(kafkaBufferSizeGauge)
+	prometheus.MustRegister(kafkaBatchSizeGauge)
 }
 
 func main() {
@@ -146,9 +163,19 @@ func main() {
 		return
 	}
 
+	pcapBufferSize := os.Getenv("PCAP_BUFFER_SIZE")
+	if pcapBufferSize == "" {
+		pcapBufferSize = "default"
+	}
+
+	packetBufferSizeGauge.Set(float64(packetBufferSize))
+	kafkaBufferSizeGauge.Set(float64(kafkaBufferSize))
+	kafkaBatchSizeGauge.Set(float64(kafkaBatchSize))
+
 	fmt.Printf(
-		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, maxRetries: %d, retryInterval: %v\n",
-		pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic, maxRetries, retryInterval,
+		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, \n"+
+			"maxRetries: %d, retryInterval: %v, pcapBufferSize: %s, kafkaBufferSize: %d, kafkaBatchSize: %d\n",
+		pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic, maxRetries, retryInterval, pcapBufferSize, kafkaBufferSize, kafkaBatchSize,
 	)
 
 	var err error
