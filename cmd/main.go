@@ -78,16 +78,18 @@ var (
 		Name: "packet_buffer_size",
 		Help: "Size of the packet buffer channel",
 	})
-
 	kafkaBufferSizeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "kafka_buffer_size",
 		Help: "Size of the Kafka ring buffer",
 	})
-
 	kafkaBatchSizeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "kafka_batch_size",
 		Help: "Size of the Kafka batch",
 	})
+	ieTypeCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gtp_ie_types_total",
+		Help: "Total number of processed Information Elements by type.",
+	}, []string{"ie_type"})
 )
 
 func init() {
@@ -99,6 +101,7 @@ func init() {
 	prometheus.MustRegister(packetBufferSizeGauge)
 	prometheus.MustRegister(kafkaBufferSizeGauge)
 	prometheus.MustRegister(kafkaBatchSizeGauge)
+	prometheus.MustRegister(ieTypeCounter)
 }
 
 func main() {
@@ -333,6 +336,8 @@ func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string, ringB
 				log.Printf("Error processing IE: %v", err)
 				continue
 			}
+
+			ieTypeCounter.WithLabelValues(ieName).Inc()
 
 			ieItems = append(ieItems, IE{
 				Type:  ieName,
