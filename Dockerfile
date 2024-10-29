@@ -13,6 +13,5 @@ FROM alpine:latest
 
 WORKDIR /app
 COPY --from=builder /src/gtp2json /app/gtp2json
-COPY testdata.pcap /app/testdata.pcap
 
 ENTRYPOINT ["/app/gtp2json"]
