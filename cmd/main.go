@@ -204,7 +204,13 @@ func main() {
 	go func() {
 		for {
 			packetChanOccupancy.Set(float64(len(packetChan)))
-			ringBufferOccupancy.Set(float64(ringBuffer.Size()))
+
+			if ringBuffer != nil {
+				ringBufferOccupancy.Set(float64(ringBuffer.Size()))
+			} else {
+				ringBufferOccupancy.Set(0)
+			}
+
 			time.Sleep(5 * time.Second)
 		}
 	}()
