@@ -110,13 +110,6 @@ func main() {
 	http.HandleFunc("/live", livenessHandler)
 	http.Handle("/metrics", promhttp.Handler())
 
-	go func() {
-		log.Println("Starting readiness and liveness probe server on :8080")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
-			log.Fatalf("Failed to start HTTP server: %v", err)
-		}
-	}()
-
 	pflag.String("file", "", "Path to the pcap file to analyze")
 	pflag.String("interface", "", "Name of the interface to analyze")
 	pflag.Int("packetBufferSize", 200000, "Size of the packet buffer channel")
@@ -128,6 +121,7 @@ func main() {
 	pflag.Int("kafkaBufferSize", 250000, "Size of the Kafka ring buffer")
 	pflag.Int("kafkaBatchSize", 10000, "Size of the Kafka batch")
 	pflag.Duration("kafkaBatchInterval", 10*time.Second, "Interval for Kafka batch sending")
+	pflag.String("metrics_addr", ":8080", "Address for the metrics server (prometheus, probes, about)")
 	pflag.Parse()
 
 	viper.SetEnvPrefix("G2J")
@@ -144,6 +138,14 @@ func main() {
 	kafkaBufferSize := viper.GetInt("kafkaBufferSize")
 	kafkaBatchSize := viper.GetInt("kafkaBatchSize")
 	kafkaBatchInterval := viper.GetDuration("kafkaBatchInterval")
+	metricsAddr := viper.GetString("metrics_addr")
+
+	go func() {
+		log.Println("Starting readiness and liveness probe server on :8080")
+		if err := http.ListenAndServe(metricsAddr, nil); err != nil {
+			log.Fatalf("Failed to start HTTP server: %v", err)
+		}
+	}()
 
 	if pcapFile == "" && iface == "" {
 		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
