@@ -51,6 +51,8 @@ var (
 	isReady       atomic.Value
 	ringBuffer    *kafkabuff.RingBuffer
 	packetChan    chan gopacket.Packet
+	AppVersion    string = "dev"
+	AppName       string = "gtp2json"
 )
 
 var (
@@ -109,6 +111,7 @@ func main() {
 	http.HandleFunc("/ready", readinessHandler)
 	http.HandleFunc("/live", livenessHandler)
 	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/about", aboutHandler)
 
 	pflag.String("file", "", "Path to the pcap file to analyze")
 	pflag.String("interface", "", "Name of the interface to analyze")
@@ -283,6 +286,56 @@ func readinessHandler(w http.ResponseWriter, r *http.Request) {
 func livenessHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Application is alive"))
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	html := `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>About</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                line-height: 1.6;
+            }
+            h1 {
+                color: #333;
+            }
+            .info {
+                margin-top: 20px;
+            }
+            .info dt {
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>About This Application</h1>
+        <dl class="info">
+            <dt>Name:</dt>
+            <dd>` + AppName + `</dd>
+            <dt>Version:</dt>
+            <dd>` + AppVersion + `</dd>
+            <dt>Author:</dt>
+            <dd>Alexander Nikonov</dd>
+            <dt>Description:</dt>
+            <dd><strong>gtp2json</strong> is an application that captures GTPv2 packets from a network interface using pcap, decodes them, and converts the data into JSON format for further processing or storage.</dd>
+        </dl>
+    </body>
+    </html>
+    `
+
+	_, err := w.Write([]byte(html))
+	if err != nil {
+		log.Printf("Failed to write /about response: %v", err)
+	}
 }
 
 func createKafkaProducer(broker string, maxRetries int, retryInterval time.Duration) (sarama.SyncProducer, error) {
