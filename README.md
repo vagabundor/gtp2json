@@ -1,13 +1,14 @@
 # gtp2json
 
-A Go application that captures GTPv2 packets from a network interface or pcap file, decodes them, and converts the data into JSON format for further processing or storage. The application can output the JSON data to a Kafka topic or stdout and provides built-in Prometheus metrics.
+Приложение на Go для захвата пакетов GTPv2 с сетевого интерфейса или pcap-файла, их декодирования и преобразования в JSON-формат для дальнейшей обработки или хранения. Приложение может отправлять данные в формате JSON в Kafka или выводить их в stdout, а также предоставляет встроенные метрики для Prometheus.
 
-## Features
-- Capture GTPv2 packets from a live network interface or a pcap file.
-- Decode GTPv2 packets into JSON format.
-- Flexible output options: Kafka or stdout.
-- Configurable Kafka batching and retry mechanisms.
-- Built-in metrics server for monitoring.
+## Основные возможности
+- Захват пакетов GTPv2 с сетевого интерфейса или из pcap-файла
+- Декодирование пакетов GTPv2 в JSON-формат
+- Гибкие варианты вывода: Kafka или stdout
+- Настраиваемые параметры отправки батчей в Kafka и механизмы повторной попытки
+- Встроенный сервер метрик для мониторинга
+
 
 ## Installation
 1. Clone the repository:
@@ -54,16 +55,19 @@ All options can also be configured using environment variables with the `G2J_` p
 - `--metrics_addr` can be set with `G2J_METRICS_ADDR`.
 
 ## Metrics
-The application exposes the following Prometheus metrics for monitoring:
+Приложение экспортирует следующие метрики Prometheus для мониторинга:
 
-- `gtp2json_packets_received_total`: Total number of packets received.
-- `gtp2json_packets_processed_total`: Total number of packets successfully processed.
-- `gtp2json_kafka_retries_total`: Total number of retries for Kafka connection.
-- `gtp2json_kafka_buffer_utilization`: Current utilization of the Kafka ring buffer.
-- `gtp2json_packet_buffer_utilization`: Current utilization of the packet buffer channel.
-- `gtp2json_processing_duration_seconds`: Histogram of packet processing durations.
+- `pcap_packets_received_total`: Общее количество пакетов, полученных через pcap.
+- `pcap_packets_dropped_total`: Общее количество пакетов, потерянных pcap.
+- `pcap_packets_if_dropped_total`: Общее количество пакетов, потерянных интерфейсом.
+- `packet_channel_occupancy`: Текущее количество пакетов в канале `packetChan`.
+- `ring_buffer_occupancy`: Текущее количество сообщений в кольцевом буфере.
+- `packet_buffer_size`: Размер канала буфера пакетов.
+- `kafka_buffer_size`: Размер кольцевого буфера Kafka.
+- `kafka_batch_size`: Размер Kafka-батча.
+- `gtp_ie_types_total`: Общее количество обработанных элементов информации (Information Elements) по типам (с меткой `ie_type`).
 
-Metrics are accessible at the address specified by `--metrics_addr` (default: `:8080`).
+Метрики доступны по адресу, указанному в параметре `--metrics_addr` (по умолчанию: `:8080`).
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
