@@ -144,8 +144,8 @@ func main() {
 	metricsAddr := viper.GetString("metrics_addr")
 
 	if pcapFile == "" && iface == "" {
-		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
-		fmt.Println("Example: gtp2json --file captured.pcap or gtp2json --interface eth0")
+		log.Println("Please specify a pcap file using --file or an interface using --interface")
+		log.Println("Example: gtp2json --file captured.pcap or gtp2json --interface eth0")
 		pflag.PrintDefaults()
 		return
 	}
@@ -158,9 +158,9 @@ func main() {
 	switch format {
 	case "numeric", "text", "mixed":
 		config.SetOutputFormat(format)
-		fmt.Printf("Output format set to: %s\n", format)
+		log.Printf("Output format set to: %s\n", format)
 	default:
-		fmt.Fprintf(os.Stderr, "Error: '%s' is not a valid format. Use 'numeric', 'text', or 'mixed'.\n", format)
+		log.Printf("Error: '%s' is not a valid format. Use 'numeric', 'text', or 'mixed'.", format)
 		return
 	}
 
@@ -173,7 +173,7 @@ func main() {
 	kafkaBufferSizeGauge.Set(float64(kafkaBufferSize))
 	kafkaBatchSizeGauge.Set(float64(kafkaBatchSize))
 
-	fmt.Printf(
+	log.Printf(
 		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, \n"+
 			"maxRetries: %d, retryInterval: %v, pcapBufferSize: %s, kafkaBufferSize: %d, kafkaBatchSize: %d\n",
 		pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic, maxRetries, retryInterval, pcapBufferSize, kafkaBufferSize, kafkaBatchSize,
