@@ -143,13 +143,6 @@ func main() {
 	kafkaBatchInterval := viper.GetDuration("kafkaBatchInterval")
 	metricsAddr := viper.GetString("metrics_addr")
 
-	go func() {
-		log.Println("Starting readiness and liveness probe server on :8080")
-		if err := http.ListenAndServe(metricsAddr, nil); err != nil {
-			log.Fatalf("Failed to start HTTP server: %v", err)
-		}
-	}()
-
 	if pcapFile == "" && iface == "" {
 		fmt.Println("Please specify a pcap file using --file or an interface using --interface")
 		fmt.Println("Example: gtp2json --file captured.pcap or gtp2json --interface eth0")
@@ -190,6 +183,14 @@ func main() {
 	isReady.Store(false)
 
 	if kafkaBroker != "" {
+		//metrics server
+		go func() {
+			log.Printf("Starting metrics server on %s", metricsAddr)
+			if err := http.ListenAndServe(metricsAddr, nil); err != nil {
+				log.Fatalf("Failed to start HTTP server: %v", err)
+			}
+		}()
+
 		producer, err = createKafkaProducer(kafkaBroker, maxRetries, retryInterval)
 		if err != nil {
 			log.Fatalf("Failed to start Sarama producer after retries: %v", err)
