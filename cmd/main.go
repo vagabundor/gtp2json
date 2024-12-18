@@ -51,6 +51,7 @@ var (
 	isReady       atomic.Value
 	ringBuffer    *kafkabuff.RingBuffer
 	packetChan    chan gopacket.Packet
+	isFirstOutput        = true
 	AppVersion    string = "dev"
 	AppName       string = "gtp2json"
 )
@@ -376,6 +377,7 @@ func createKafkaProducer(broker string, maxRetries int, retryInterval time.Durat
 }
 
 func processPackets(packetChan <-chan gopacket.Packet, kafkaBroker, kafkaTopic string, doneChan chan<- struct{}, ringBuffer *kafkabuff.RingBuffer) {
+	defer finalizeOutput()
 	for packet := range packetChan {
 		processPacket(packet, kafkaBroker, kafkaTopic, ringBuffer)
 	}
@@ -524,5 +526,17 @@ func sendToKafka(data []byte, kafkaTopic string, ringBuffer *kafkabuff.RingBuffe
 }
 
 func outputToStdout(data []byte) {
-	fmt.Println(string(data))
+	if isFirstOutput {
+		fmt.Println("[") // Start of array
+		isFirstOutput = false
+	} else {
+		fmt.Println(",")
+	}
+	fmt.Print(string(data))
+}
+
+func finalizeOutput() {
+	if !isFirstOutput {
+		fmt.Println("\n]") // End of array
+	}
 }
