@@ -1,21 +1,26 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"gtp2json/config"
 	"gtp2json/pkg/gtp2"
 	"gtp2json/pkg/gtp2ie"
-	"gtp2json/pkg/kafkabuff"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/vagabundor/kafkabuff"
+	"github.com/vagabundor/kafkaclient/v2"
+	"github.com/vagabundor/kafkaclient/v2/scram"
 
 	"github.com/IBM/sarama"
 	"github.com/google/gopacket"
@@ -44,12 +49,13 @@ type GTPv2Packet struct {
 	IEs              []IE      `json:"ies"`
 }
 
+type KafkaMsgBuff struct {
+	Topic      string
+	RingBuffer *kafkabuff.RingBuffer
+}
+
 var (
-	producer      sarama.SyncProducer
-	maxRetries    int
-	retryInterval time.Duration
 	isReady       atomic.Value
-	ringBuffer    *kafkabuff.RingBuffer
 	packetChan    chan gopacket.Packet
 	isFirstOutput        = true
 	AppVersion    string = "dev"
@@ -118,14 +124,18 @@ func main() {
 	pflag.String("interface", "", "Name of the interface to analyze")
 	pflag.Int("packetBufferSize", 200000, "Size of the packet buffer channel")
 	pflag.String("format", "numeric", "Specifies the format of the output (numeric, text, mixed)")
-	pflag.String("kafkaBroker", "", "Address of the Kafka broker (if not set, output to stdout)")
+	pflag.String("kafka_brokers", "localhost:9092", "addresses of the Kafka brokers, comma separated")
 	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
+	pflag.String("kafka_user", "", "Kafka username for SASL authentication")
+	pflag.String("kafka_password", "", "Kafka password for SASL authentication")
+	pflag.String("kafka_cert_file", "", "TLS certificate file for Kafka (optional)")
 	pflag.Int("maxRetries", 25, "Maximum number of retries for Kafka connection (use 0 for infinite retries)")
 	pflag.Duration("retryInterval", 5*time.Second, "Interval between retries for Kafka connection")
 	pflag.Int("kafkaBufferSize", 250000, "Size of the Kafka ring buffer")
 	pflag.Int("kafkaBatchSize", 10000, "Size of the Kafka batch")
 	pflag.Duration("kafkaBatchInterval", 10*time.Second, "Interval for Kafka batch sending")
 	pflag.String("metrics_addr", ":8080", "Address for the metrics server (prometheus, probes, about)")
+	pflag.Bool("debug", false, "enable debug mode for detailed logging")
 	pflag.Parse()
 
 	viper.SetEnvPrefix("G2J")
@@ -135,14 +145,18 @@ func main() {
 	pcapFile := viper.GetString("file")
 	iface := viper.GetString("interface")
 	packetBufferSize := viper.GetInt("packetBufferSize")
-	kafkaBroker := viper.GetString("kafkaBroker")
+	kafkaBrokers := viper.GetString("kafka_brokers")
 	kafkaTopic := viper.GetString("kafkaTopic")
-	maxRetries = viper.GetInt("maxRetries")
-	retryInterval = viper.GetDuration("retryInterval")
+	certKafkaFile := viper.GetString("kafka_cert_file")
+	kafkaUsername := viper.GetString("kafka_user")
+	kafkaPassword := viper.GetString("kafka_password")
+	maxRetries := viper.GetInt("maxRetries")
+	retryInterval := viper.GetDuration("retryInterval")
 	kafkaBufferSize := viper.GetInt("kafkaBufferSize")
 	kafkaBatchSize := viper.GetInt("kafkaBatchSize")
 	kafkaBatchInterval := viper.GetDuration("kafkaBatchInterval")
 	metricsAddr := viper.GetString("metrics_addr")
+	debug := viper.GetBool("debug")
 
 	if pcapFile == "" && iface == "" {
 		log.Println("Please specify a pcap file using --file or an interface using --interface")
@@ -177,13 +191,18 @@ func main() {
 	log.Printf(
 		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, \n"+
 			"maxRetries: %d, retryInterval: %v, pcapBufferSize: %s, kafkaBufferSize: %d, kafkaBatchSize: %d\n",
-		pcapFile, iface, packetBufferSize, kafkaBroker, kafkaTopic, maxRetries, retryInterval, pcapBufferSize, kafkaBufferSize, kafkaBatchSize,
+		pcapFile, iface, packetBufferSize, kafkaBrokers, kafkaTopic, maxRetries, retryInterval, pcapBufferSize, kafkaBufferSize, kafkaBatchSize,
 	)
 
-	var err error
 	isReady.Store(false)
 
-	if kafkaBroker != "" {
+	useKafka := false
+	var kmsgbuff *KafkaMsgBuff
+
+	if kafkaBrokers != "" {
+
+		useKafka = true
+
 		//metrics server
 		go func() {
 			log.Printf("Starting metrics server on %s", metricsAddr)
@@ -192,35 +211,89 @@ func main() {
 			}
 		}()
 
-		producer, err = createKafkaProducer(kafkaBroker, maxRetries, retryInterval)
-		if err != nil {
-			log.Fatalf("Failed to start Sarama producer after retries: %v", err)
+		logger := logrus.New()
+		logger.SetFormatter(&logrus.TextFormatter{
+			TimestampFormat: "2006-01-02T15:04:05",
+			FullTimestamp:   true,
+		})
+		log.SetOutput(logger.Writer())
+		logger.Info("Application started")
+
+		if debug {
+			logger.SetLevel(logrus.DebugLevel)
+		} else {
+			logger.SetLevel(logrus.InfoLevel)
 		}
-		defer producer.Close()
+
+		saramaConfig := sarama.NewConfig()
+		saramaConfig.Producer.Return.Successes = true
+		saramaConfig.Producer.RequiredAcks = sarama.WaitForAll
+		saramaConfig.ClientID = AppName
+
+		// Enable SASL SCRAM-SHA-512 if username and password are provided
+		if kafkaUsername != "" && kafkaPassword != "" {
+			saramaConfig.Net.SASL.Enable = true
+			saramaConfig.Net.SASL.User = kafkaUsername
+			saramaConfig.Net.SASL.Password = kafkaPassword
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+
+			// Implement SCRAM-SHA-512 client using xdg-go/scram
+			scramClientGen := &scram.XDGSCRAMClientGenerator{
+				HashGeneratorFcn: scram.SHA512,
+			}
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = scramClientGen.Generate
+			logger.Infof("SASL SCRAM-SHA-512 authentication enabled for Kafka with user: %s", kafkaUsername)
+		}
+
+		// Enable TLS if a CA certificate file is provided
+		if certKafkaFile != "" {
+			tlsConfig, err := createTLSConfig(certKafkaFile)
+			if err != nil {
+				log.Fatalf("Failed to configure TLS: %v", err)
+			}
+			saramaConfig.Net.TLS.Enable = true
+			saramaConfig.Net.TLS.Config = tlsConfig
+			logger.Infof("TLS enabled for Kafka with CA certificate: %s", certKafkaFile)
+		}
+
+		brokerList := strings.Split(kafkaBrokers, ",")
+		for i := range brokerList {
+			brokerList[i] = strings.TrimSpace(brokerList[i])
+		}
+
+		// Initialize Kafka client
+		kafkaClient, err := kafkaclient.NewKafkaClient(brokerList, 0, 1*time.Second, saramaConfig, logger)
+		if err != nil {
+			logger.WithError(err).Fatal("Failed to initialize Kafka client")
+		}
+		defer kafkaClient.Close()
+
+		packetBufferSizeGauge.Set(float64(kafkaBufferSize))
+		ringBuffer := kafkabuff.NewRingBuffer(kafkaBufferSize)
+		kafkaClient.StartBatchSender(ringBuffer, kafkaBatchSize, kafkaBatchInterval)
+
 		isReady.Store(true)
 
-		ringBuffer = kafkabuff.NewRingBuffer(kafkaBufferSize)
-		startKafkaBatchSender(ringBuffer, kafkaBatchSize, kafkaBatchInterval, kafkaTopic)
+		go func() {
+			for {
+				packetChanOccupancy.Set(float64(len(packetChan)))
+
+				if ringBuffer != nil {
+					ringBufferOccupancy.Set(float64(ringBuffer.Size()))
+				} else {
+					ringBufferOccupancy.Set(0)
+				}
+
+				time.Sleep(5 * time.Second)
+			}
+		}()
+
 	}
 
 	packetChan = make(chan gopacket.Packet, packetBufferSize)
 	doneChan := make(chan struct{})
 
-	go processPackets(packetChan, kafkaBroker, kafkaTopic, doneChan, ringBuffer)
-
-	go func() {
-		for {
-			packetChanOccupancy.Set(float64(len(packetChan)))
-
-			if ringBuffer != nil {
-				ringBufferOccupancy.Set(float64(ringBuffer.Size()))
-			} else {
-				ringBufferOccupancy.Set(0)
-			}
-
-			time.Sleep(5 * time.Second)
-		}
-	}()
+	go processPackets(packetChan, useKafka, kmsgbuff, doneChan)
 
 	if pcapFile != "" {
 		handle, err := pcap.OpenOffline(pcapFile)
@@ -340,51 +413,34 @@ func aboutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createKafkaProducer(broker string, maxRetries int, retryInterval time.Duration) (sarama.SyncProducer, error) {
-	var producer sarama.SyncProducer
-	var err error
-
-	config := sarama.NewConfig()
-
-	config.Producer.Return.Successes = true
-	config.Producer.RequiredAcks = sarama.WaitForLocal
-
-	attemptCount := 0
-
-	for i := 0; i < maxRetries || maxRetries == 0; i++ {
-		attemptCount++
-
-		producer, err = sarama.NewSyncProducer([]string{broker}, config)
-		if err == nil {
-			log.Printf("Connected to Kafka after %d attempt(s)\n", attemptCount)
-			return producer, nil
-		}
-
-		if maxRetries == 0 {
-			log.Printf("Failed to connect to Kafka (attempt %d/∞): %v\n", attemptCount, err)
-		} else {
-			log.Printf("Failed to connect to Kafka (attempt %d/%d): %v\n", attemptCount, maxRetries, err)
-		}
-
-		time.Sleep(retryInterval)
-
-		if maxRetries == 0 {
-			i--
-		}
+func createTLSConfig(caCertPath string) (*tls.Config, error) {
+	// Read the CA certificate
+	caCert, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
 	}
 
-	return nil, fmt.Errorf("could not connect to Kafka after %d attempts: %v", maxRetries, err)
+	// Add the CA certificate to the trusted pool
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("failed to add CA certificate to the trusted pool")
+	}
+
+	// Create and return the TLS configuration
+	return &tls.Config{
+		RootCAs: certPool,
+	}, nil
 }
 
-func processPackets(packetChan <-chan gopacket.Packet, kafkaBroker, kafkaTopic string, doneChan chan<- struct{}, ringBuffer *kafkabuff.RingBuffer) {
+func processPackets(packetChan <-chan gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff, doneChan chan<- struct{}) {
 	defer finalizeOutput()
 	for packet := range packetChan {
-		processPacket(packet, kafkaBroker, kafkaTopic, ringBuffer)
+		processPacket(packet, useKafka, kmsgbuff)
 	}
 	doneChan <- struct{}{}
 }
 
-func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string, ringBuffer *kafkabuff.RingBuffer) {
+func processPacket(packet gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff) {
 	gtpLayer := packet.Layer(gtp2.LayerTypeGTPv2)
 	if gtpLayer != nil {
 		gtp, ok := gtpLayer.(*gtp2.GTPv2)
@@ -435,94 +491,24 @@ func processPacket(packet gopacket.Packet, kafkaBroker, kafkaTopic string, ringB
 			return
 		}
 
-		if kafkaBroker != "" {
-			sendToKafka(jsonData, kafkaTopic, ringBuffer)
+		if useKafka {
+			if kmsgbuff != nil && kmsgbuff.RingBuffer != nil {
+				sendToKafka(jsonData, kmsgbuff)
+			} else {
+				log.Println("KafkaMsgBuff is nil or invalid")
+			}
 		} else {
 			outputToStdout(jsonData)
 		}
 	}
 }
 
-func startKafkaBatchSender(ringBuffer *kafkabuff.RingBuffer, batchSize int, interval time.Duration, kafkaTopic string) {
-	ticker := time.NewTicker(interval)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if ringBuffer.Size() > 0 {
-					batch := ringBuffer.GetBatch(batchSize)
-					sendBatchToKafkaWithRetry(batch, kafkaTopic, maxRetries, retryInterval)
-				}
-			default:
-				if ringBuffer.Size() >= batchSize {
-					batch := ringBuffer.GetBatch(batchSize)
-					sendBatchToKafkaWithRetry(batch, kafkaTopic, maxRetries, retryInterval)
-				}
-				time.Sleep(10 * time.Millisecond)
-			}
-		}
-	}()
-}
-
-func sendBatchToKafkaWithRetry(batch []*sarama.ProducerMessage, kafkaTopic string, maxRetries int, retryInterval time.Duration) {
-
-	for i := 0; i < maxRetries || maxRetries == 0; i++ {
-
-		if !ensureProducerConnected(viper.GetString("kafkaBroker"), retryInterval) {
-			log.Println("Failed to connect to Kafka. Aborting batch send.")
-			return
-		}
-
-		err := producer.SendMessages(batch)
-		if err != nil {
-			var producerErrors sarama.ProducerErrors
-			if errors.As(err, &producerErrors) {
-				var failedMessages []*sarama.ProducerMessage
-				for _, pe := range producerErrors {
-					failedMessages = append(failedMessages, pe.Msg)
-				}
-				batch = failedMessages
-				log.Printf("Retrying to send %d failed messages", len(failedMessages))
-				time.Sleep(retryInterval)
-				continue
-			} else {
-				log.Printf("Failed to send batch to Kafka: %v", err)
-				isReady.Store(false)
-				time.Sleep(retryInterval)
-				continue
-			}
-		}
-
-		log.Printf("Batch of %d messages sent to Kafka topic(%s)\n", len(batch), kafkaTopic)
-		isReady.Store(true)
-		return
-	}
-
-	log.Println("Failed to send batch to Kafka after retries")
-	isReady.Store(false)
-}
-
-func ensureProducerConnected(broker string, retryInterval time.Duration) bool {
-	if producer == nil {
-		log.Println("Producer is not initialized. Trying to reconnect.")
-		var err error
-		producer, err = createKafkaProducer(broker, 1, retryInterval)
-		if err != nil {
-			log.Printf("Failed to reconnect to Kafka: %v\n", err)
-			return false
-		} else {
-			isReady.Store(true)
-		}
-	}
-	return true
-}
-
-func sendToKafka(data []byte, kafkaTopic string, ringBuffer *kafkabuff.RingBuffer) {
+func sendToKafka(data []byte, msgbuff *KafkaMsgBuff) {
 	msg := &sarama.ProducerMessage{
-		Topic: kafkaTopic,
+		Topic: msgbuff.Topic,
 		Value: sarama.ByteEncoder(data),
 	}
-	ringBuffer.Add(msg)
+	msgbuff.RingBuffer.Add(msg)
 }
 
 func outputToStdout(data []byte) {
