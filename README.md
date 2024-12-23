@@ -35,23 +35,32 @@ Run the application with either a pcap file or a network interface.
   ```
 
 ### Options
-| Flag                          | Description                                                                          | Default            |
-|-------------------------------|--------------------------------------------------------------------------------------|--------------------|
-| `--file string`               | Path to the pcap file to analyze                                                    |                    |
-| `--format string`             | Specifies the format of the output (numeric, text, mixed)                           | `numeric`          |
-| `--interface string`          | Name of the interface to analyze                                                    |                    |
-| `--kafkaBatchInterval duration` | Interval for Kafka batch sending                                                    | `10s`              |
-| `--kafkaBatchSize int`        | Size of the Kafka batch                                                             | `10000`            |
-| `--kafkaBroker string`        | Address of the Kafka broker (if not set, output to stdout)                          |                    |
-| `--kafkaBufferSize int`       | Size of the Kafka ring buffer                                                       | `250000`           |
-| `--kafkaTopic string`         | Kafka topic to send data to                                                         | `gtp_packets`      |
-| `--maxRetries int`            | Maximum number of retries for Kafka connection (use 0 for infinite retries)         | `25`               |
-| `--metrics_addr string`       | Address for the metrics server (Prometheus, probes, about)                          | `:8080`            |
-| `--packetBufferSize int`      | Size of the packet buffer channel                                                   | `200000`           |
-| `--retryInterval duration`    | Interval between retries for Kafka connection                                       | `5s`               |
+
+| Flag                           | Description                                                                          | Default            |
+|--------------------------------|--------------------------------------------------------------------------------------|--------------------|
+| `--debug`                      | Enable debug mode for detailed logging                                              | `false`            |
+| `--file string`                | Path to the pcap file to analyze                                                    |                    |
+| `--format string`              | Specifies the format of the output (numeric, text, mixed)                           | `numeric`          |
+| `--interface string`           | Name of the interface to analyze                                                    |                    |
+| `--kafkaBatchInterval duration`| Interval for Kafka batch sending                                                    | `10s`              |
+| `--kafkaBatchSize int`         | Size of the Kafka batch                                                             | `10000`            |
+| `--kafkaBufferSize int`        | Size of the Kafka ring buffer                                                       | `250000`           |
+| `--kafkaTopic string`          | Kafka topic to send data to                                                         | `gtp_packets`      |
+| `--kafka_brokers string`       | Addresses of the Kafka brokers, comma separated                                     |                    |
+| `--kafka_cert_file string`     | TLS certificate file for Kafka (optional)                                           |                    |
+| `--kafka_password string`      | Kafka password for SASL authentication                                              |                    |
+| `--kafka_user string`          | Kafka username for SASL authentication                                              |                    |
+| `--maxRetries int`             | Maximum number of retries for Kafka connection (use 0 for infinite retries)         | `25`               |
+| `--metrics_addr string`        | Address for the metrics server (Prometheus, probes, about)                          | `:8080`            |
+| `--packetBufferSize int`       | Size of the packet buffer channel                                                   | `200000`           |
+| `--retryInterval duration`     | Interval between retries for Kafka connection                                       | `5s`               |
+
+---
+
+### Environment Variables
 
 All options can also be configured using environment variables with the `G2J_` prefix. For example:
-- `--kafkaBroker` can be set with the environment variable `G2J_KAFKA_BROKER`.
+- `--kafka_brokers` can be set with the environment variable `G2J_KAFKA_BROKERS`.
 - `--metrics_addr` can be set with `G2J_METRICS_ADDR`.
 
 ## Metrics
