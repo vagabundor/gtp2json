@@ -124,7 +124,7 @@ func main() {
 	pflag.String("interface", "", "Name of the interface to analyze")
 	pflag.Int("packetBufferSize", 200000, "Size of the packet buffer channel")
 	pflag.String("format", "numeric", "Specifies the format of the output (numeric, text, mixed)")
-	pflag.String("kafka_brokers", "localhost:9092", "addresses of the Kafka brokers, comma separated")
+	pflag.String("kafka_brokers", "", "addresses of the Kafka brokers, comma separated")
 	pflag.String("kafkaTopic", "gtp_packets", "Kafka topic to send data to")
 	pflag.String("kafka_user", "", "Kafka username for SASL authentication")
 	pflag.String("kafka_password", "", "Kafka password for SASL authentication")
@@ -270,6 +270,15 @@ func main() {
 
 		packetBufferSizeGauge.Set(float64(kafkaBufferSize))
 		ringBuffer := kafkabuff.NewRingBuffer(kafkaBufferSize)
+		if ringBuffer == nil {
+			log.Fatalf("Failed to create Kafka ring buffer")
+		}
+
+		kmsgbuff = &KafkaMsgBuff{
+			Topic:      kafkaTopic,
+			RingBuffer: ringBuffer,
+		}
+
 		kafkaClient.StartBatchSender(ringBuffer, kafkaBatchSize, kafkaBatchInterval)
 
 		isReady.Store(true)
@@ -346,6 +355,16 @@ func main() {
 
 	close(packetChan)
 	<-doneChan
+
+	if useKafka {
+		log.Println("Waiting for Kafka buffer to flush...")
+		for kmsgbuff.RingBuffer.Size() > 0 {
+			time.Sleep(200 * time.Millisecond)
+		}
+		log.Println("Kafka buffer flushed.")
+	}
+
+	log.Println("All tasks completed. Exiting.")
 }
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
@@ -492,10 +511,9 @@ func processPacket(packet gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff
 		}
 
 		if useKafka {
-			if kmsgbuff != nil && kmsgbuff.RingBuffer != nil {
-				sendToKafka(jsonData, kmsgbuff)
-			} else {
-				log.Println("KafkaMsgBuff is nil or invalid")
+			err := sendToKafka(jsonData, kmsgbuff)
+			if err != nil {
+				log.Printf("Error sending to Kafka: %v", err)
 			}
 		} else {
 			outputToStdout(jsonData)
@@ -503,12 +521,16 @@ func processPacket(packet gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff
 	}
 }
 
-func sendToKafka(data []byte, msgbuff *KafkaMsgBuff) {
+func sendToKafka(data []byte, msgbuff *KafkaMsgBuff) error {
+	if msgbuff == nil || msgbuff.RingBuffer == nil {
+		return fmt.Errorf("invalid KafkaMsgBuff")
+	}
 	msg := &sarama.ProducerMessage{
 		Topic: msgbuff.Topic,
 		Value: sarama.ByteEncoder(data),
 	}
 	msgbuff.RingBuffer.Add(msg)
+	return nil
 }
 
 func outputToStdout(data []byte) {
