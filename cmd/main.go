@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,6 +29,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/nazar256/parapipe"
 )
 
 type IE struct {
@@ -56,7 +59,6 @@ type KafkaMsgBuff struct {
 
 var (
 	isReady       atomic.Value
-	packetChan    chan gopacket.Packet
 	isFirstOutput        = true
 	AppVersion    string = "dev"
 	AppName       string = "gtp2json"
@@ -189,7 +191,7 @@ func main() {
 	kafkaBatchSizeGauge.Set(float64(kafkaBatchSize))
 
 	log.Printf(
-		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBroker: %s, kafkaTopic: %s, \n"+
+		"pcapFile: %s, iface: %s, packetBufferSize: %d, kafkaBrokers: %s, kafkaTopic: %s, \n"+
 			"maxRetries: %d, retryInterval: %v, pcapBufferSize: %s, kafkaBufferSize: %d, kafkaBatchSize: %d\n",
 		pcapFile, iface, packetBufferSize, kafkaBrokers, kafkaTopic, maxRetries, retryInterval, pcapBufferSize, kafkaBufferSize, kafkaBatchSize,
 	)
@@ -198,6 +200,9 @@ func main() {
 
 	useKafka := false
 	var kmsgbuff *KafkaMsgBuff
+
+	// Input packet buffer
+	packetChan := make(chan gopacket.Packet, packetBufferSize)
 
 	if kafkaBrokers != "" {
 
@@ -299,10 +304,19 @@ func main() {
 
 	}
 
-	packetChan = make(chan gopacket.Packet, packetBufferSize)
 	doneChan := make(chan struct{})
 
-	go processPackets(packetChan, useKafka, kmsgbuff, doneChan)
+	// Parallel packet processing with strict result ordering
+	concurrency := runtime.NumCPU()
+	pipeline := parapipe.NewPipeline(concurrency, parseGTP)
+
+	go func() {
+		for packet := range packetChan {
+			pipeline.Push(packet)
+		}
+	}()
+
+	go processOutput(pipeline, useKafka, kmsgbuff, doneChan)
 
 	if pcapFile != "" {
 		handle, err := pcap.OpenOffline(pcapFile)
@@ -311,10 +325,8 @@ func main() {
 		}
 		defer handle.Close()
 
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for packet := range packetSource.Packets() {
-			packetChan <- packet
-		}
+		dispatchPackets(handle, packetChan)
+
 	} else if iface != "" {
 		handle, err := pcap.OpenLive(iface, 65535, true, pcap.BlockForever)
 		if err != nil {
@@ -347,12 +359,10 @@ func main() {
 			}
 		}()
 
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for packet := range packetSource.Packets() {
-			packetChan <- packet
-		}
+		dispatchPackets(handle, packetChan)
 	}
 
+	pipeline.Close()
 	close(packetChan)
 	<-doneChan
 
@@ -451,65 +461,17 @@ func createTLSConfig(caCertPath string) (*tls.Config, error) {
 	}, nil
 }
 
-func processPackets(packetChan <-chan gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff, doneChan chan<- struct{}) {
-	defer finalizeOutput()
-	for packet := range packetChan {
-		processPacket(packet, useKafka, kmsgbuff)
+func dispatchPackets(handle *pcap.Handle, packchan chan gopacket.Packet) {
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		packchan <- packet
 	}
-	doneChan <- struct{}{}
 }
 
-func processPacket(packet gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff) {
-	gtpLayer := packet.Layer(gtp2.LayerTypeGTPv2)
-	if gtpLayer != nil {
-		gtp, ok := gtpLayer.(*gtp2.GTPv2)
-		if !ok {
-			log.Println("Error asserting layer to GTPv2")
-			return
-		}
+func processOutput(pipeline *parapipe.Pipeline[gopacket.Packet, []byte], useKafka bool, kmsgbuff *KafkaMsgBuff, doneChan chan<- struct{}) {
+	defer finalizeOutput()
 
-		var ieItems []IE
-		for _, ie := range gtp.IEs {
-			ieName, processedContent, err := gtp2ie.ProcessIE(ie)
-			if err != nil {
-				log.Printf("Error processing IE: %v", err)
-				continue
-			}
-
-			ieTypeCounter.WithLabelValues(ieName).Inc()
-
-			ieItems = append(ieItems, IE{
-				Type:  ieName,
-				Value: processedContent,
-			})
-		}
-
-		var teidPtr *uint32
-		if gtp.TEIDflag {
-			teidPtr = new(uint32)
-			*teidPtr = gtp.TEID
-		}
-
-		packetData := GTPv2Packet{
-			Timestamp:        packet.Metadata().Timestamp,
-			Version:          gtp.Version,
-			PiggybackingFlag: gtp.PiggybackingFlag,
-			TEIDflag:         gtp.TEIDflag,
-			MessagePriority:  gtp.MessagePriority,
-			MessageType:      gtp.MessageType,
-			MessageLength:    gtp.MessageLength,
-			TEID:             teidPtr,
-			SequenceNumber:   gtp.SequenceNumber,
-			Spare:            gtp.Spare,
-			IEs:              ieItems,
-		}
-
-		jsonData, err := json.MarshalIndent(packetData, "", "    ")
-		if err != nil {
-			log.Printf("Error converting to JSON: %v", err)
-			return
-		}
-
+	for jsonData := range pipeline.Out() {
 		if useKafka {
 			err := sendToKafka(jsonData, kmsgbuff)
 			if err != nil {
@@ -519,6 +481,63 @@ func processPacket(packet gopacket.Packet, useKafka bool, kmsgbuff *KafkaMsgBuff
 			outputToStdout(jsonData)
 		}
 	}
+
+	doneChan <- struct{}{}
+}
+
+func parseGTP(packet gopacket.Packet) ([]byte, bool) {
+	gtpLayer := packet.Layer(gtp2.LayerTypeGTPv2)
+	if gtpLayer == nil {
+		return nil, false
+	}
+	gtp, ok := gtpLayer.(*gtp2.GTPv2)
+	if !ok {
+		log.Println("Error asserting layer to GTPv2")
+		return nil, false
+	}
+
+	var ieItems []IE
+	for _, ie := range gtp.IEs {
+		ieName, processedContent, err := gtp2ie.ProcessIE(ie)
+		if err != nil {
+			log.Printf("Error processing IE: %v", err)
+			continue
+		}
+
+		ieTypeCounter.WithLabelValues(ieName).Inc()
+
+		ieItems = append(ieItems, IE{
+			Type:  ieName,
+			Value: processedContent,
+		})
+	}
+
+	var teidPtr *uint32
+	if gtp.TEIDflag {
+		teidPtr = new(uint32)
+		*teidPtr = gtp.TEID
+	}
+
+	packetData := GTPv2Packet{
+		Timestamp:        packet.Metadata().Timestamp,
+		Version:          gtp.Version,
+		PiggybackingFlag: gtp.PiggybackingFlag,
+		TEIDflag:         gtp.TEIDflag,
+		MessagePriority:  gtp.MessagePriority,
+		MessageType:      gtp.MessageType,
+		MessageLength:    gtp.MessageLength,
+		TEID:             teidPtr,
+		SequenceNumber:   gtp.SequenceNumber,
+		Spare:            gtp.Spare,
+		IEs:              ieItems,
+	}
+
+	jsonData, err := json.MarshalIndent(packetData, "", "    ")
+	if err != nil {
+		log.Printf("Error converting to JSON: %v", err)
+		return nil, false
+	}
+	return jsonData, true
 }
 
 func sendToKafka(data []byte, msgbuff *KafkaMsgBuff) error {
