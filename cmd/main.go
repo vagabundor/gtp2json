@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"gtp2json/config"
+	"gtp2json/pkg/assets"
 	"gtp2json/pkg/gtp2"
 	"gtp2json/pkg/gtp2ie"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -61,7 +63,12 @@ var (
 	isReady       atomic.Value
 	isFirstOutput        = true
 	AppVersion    string = "dev"
-	AppName       string = "gtp2json"
+)
+
+const (
+	AppName  = "gtp2json"
+	AppDescr = `is an application that captures GTPv2 packets from a network interface using pcap, 
+            decodes them, and converts the data into JSON format for further processing or storage.`
 )
 
 var (
@@ -393,52 +400,35 @@ func livenessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-
-	html := `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>About</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 20px;
-                line-height: 1.6;
-            }
-            h1 {
-                color: #333;
-            }
-            .info {
-                margin-top: 20px;
-            }
-            .info dt {
-                font-weight: bold;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>About This Application</h1>
-        <dl class="info">
-            <dt>Name:</dt>
-            <dd>` + AppName + `</dd>
-            <dt>Version:</dt>
-            <dd>` + AppVersion + `</dd>
-            <dt>Author:</dt>
-            <dd>Alexander Nikonov</dd>
-            <dt>Description:</dt>
-            <dd><strong>gtp2json</strong> is an application that captures GTPv2 packets from a network interface using pcap, decodes them, and converts the data into JSON format for further processing or storage.</dd>
-        </dl>
-    </body>
-    </html>
-    `
-
-	_, err := w.Write([]byte(html))
+	// html-template
+	tmplData, err := assets.AboutHTML.ReadFile("html/about.html")
 	if err != nil {
-		log.Printf("Failed to write /about response: %v", err)
+		http.Error(w, "Error loading template", http.StatusInternalServerError)
+		log.Printf("Failed to load about.html: %v", err)
+		return
+	}
+
+	tmpl, err := template.New("about").Parse(string(tmplData))
+	if err != nil {
+		http.Error(w, "Error parsing template", http.StatusInternalServerError)
+		log.Printf("Failed to parse template: %v", err)
+		return
+	}
+
+	data := struct {
+		AppName    string
+		AppVersion string
+		AppDescr   string
+	}{
+		AppName:    AppName,
+		AppVersion: AppVersion,
+		AppDescr:   AppDescr,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		log.Printf("Template execution error: %v", err)
 	}
 }
 
