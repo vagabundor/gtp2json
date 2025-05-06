@@ -3,7 +3,7 @@ package gtp2ie
 import (
 	"encoding/binary"
 	"fmt"
-	"gtp2json/config"
+	"github.com/vagabundor/gtp2json/config"
 )
 
 // ProtocolIDNames maps protocol IDs to their descriptions (3GPP TS 24.008 10.5.6.3)
