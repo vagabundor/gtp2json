@@ -54,7 +54,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      G2J_KAFKABROKER: kafka:9092
+      G2J_KAFKA_BROKERS: "kafka:9092"
       G2J_KAFKATOPIC: gtp_packets
       G2J_INTERFACE: eth0
       G2J_PACKETBUFFERSIZE: 500000

@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 RUN apk add --no-cache build-base libpcap-dev
 
@@ -13,6 +13,5 @@ FROM alpine:latest
 
 WORKDIR /app
 COPY --from=builder /src/gtp2json /app/gtp2json
-COPY testdata.pcap /app/testdata.pcap
 
 ENTRYPOINT ["/app/gtp2json"]

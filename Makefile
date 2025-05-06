@@ -1,6 +1,6 @@
 BINARY=gtp2json
 
-.PHONY: all build clean deps docker-build extract docker-build-minimal run shell
+.PHONY: all build clean deps docker-build extract run shell
 
 all: build
 
@@ -10,25 +10,22 @@ deps:
 build: deps docker-build extract
 
 docker-build:
-	sudo docker build -t gtp2json-build .
+	sudo docker build -t gtp2json .
 
 extract:
 	@echo "Extracting binary from Docker container..."
-	CONTAINER_ID=$$(sudo docker create gtp2json-build) && \
-	sudo docker cp $$CONTAINER_ID:/src/$(BINARY) ./$(BINARY) && \
+	CONTAINER_ID=$$(sudo docker create gtp2json) && \
+	sudo docker cp $$CONTAINER_ID:/app/$(BINARY) ./$(BINARY) && \
 	sudo docker rm $$CONTAINER_ID
 
-docker-build-minimal:
-	sudo docker build -f Dockerfile.minimal -t gtp2json-minimal .
-
 run:
-	sudo docker run --rm gtp2json-minimal
+	sudo docker run --rm gtp2json
 
 test:
 	go test ./...
 
 shell:
-	sudo docker run --rm -it --entrypoint /bin/sh gtp2json-minimal
+	sudo docker run --rm -it --entrypoint /bin/sh gtp2json
 
 clean:
 	rm -f $(BINARY)
