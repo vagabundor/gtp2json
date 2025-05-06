@@ -1,8 +1,8 @@
 package gtp2ie
 
 import (
-	"gtp2json/config"
-	"gtp2json/pkg/gtp2"
+	"github.com/vagabundor/gtp2json/config"
+	"github.com/vagabundor/gtp2json/pkg/gtp2"
 	"reflect"
 	"testing"
 )
