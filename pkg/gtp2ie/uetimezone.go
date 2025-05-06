@@ -2,7 +2,7 @@ package gtp2ie
 
 import (
 	"fmt"
-	"gtp2json/config"
+	"github.com/vagabundor/gtp2json/config"
 )
 
 // UETimeZone represents the UE Time Zone IE containing the time zone and DST adjustment.
