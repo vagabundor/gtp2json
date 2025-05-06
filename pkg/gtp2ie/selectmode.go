@@ -2,7 +2,7 @@ package gtp2ie
 
 import (
 	"fmt"
-	"gtp2json/config"
+	"github.com/vagabundor/gtp2json/config"
 )
 
 // SelectionModeNames maps the numerical codes to detailed descriptions (3GPPP TS 29.274 8.58)
