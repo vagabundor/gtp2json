@@ -2,7 +2,7 @@ package gtp2ie
 
 import (
 	"fmt"
-	"gtp2json/config"
+	"github.com/vagabundor/gtp2json/config"
 )
 
 // RATTypeNames maps RAT type values to their descriptions
