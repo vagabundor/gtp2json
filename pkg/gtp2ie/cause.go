@@ -2,7 +2,7 @@ package gtp2ie
 
 import (
 	"fmt"
-	"gtp2json/config"
+	"github.com/vagabundor/gtp2json/config"
 )
 
 // CauseDescriptions maps a byte to a protocol cause description (3GPP TS 29.274 8.4)
