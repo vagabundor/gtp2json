@@ -3,7 +3,7 @@ package gtp2ie
 import (
 	"encoding/hex"
 	"fmt"
-	"gtp2json/pkg/gtp2"
+	"github.com/vagabundor/gtp2json/pkg/gtp2"
 )
 
 const (
