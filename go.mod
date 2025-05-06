@@ -1,4 +1,4 @@
-module gtp2json
+module github.com/vagabundor/gtp2json
 
 go 1.23.1
 
